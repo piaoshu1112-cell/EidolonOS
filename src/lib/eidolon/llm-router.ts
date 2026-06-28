@@ -12,6 +12,7 @@
  * z-ai-web-dev-sdk MUST stay behind this boundary.
  */
 import ZAI from 'z-ai-web-dev-sdk'
+import './zai-bootstrap' // side-effect: synthesizes .z-ai-config from env vars on Vercel
 
 export interface VesselMessage {
   role: 'system' | 'user' | 'assistant'

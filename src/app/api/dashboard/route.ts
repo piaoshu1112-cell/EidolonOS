@@ -7,6 +7,7 @@
  */
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ensureDbReady } from '@/lib/eidolon/db-init'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,6 +16,7 @@ const EIDOLON_STATUSES = ['dormant', 'awakening', 'active', 'sealed']
 
 export async function GET() {
   try {
+    await ensureDbReady()
     const [
       primeCount,
       eidolonCount,

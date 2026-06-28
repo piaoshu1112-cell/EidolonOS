@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "bun run build",
+  "devCommand": "bun run dev",
+  "installCommand": "bun install",
+  "functions": {
+    "src/app/api/eidolons/[id]/converse/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/aa2p/converse/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/memory/ingest/route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "crons": []
+}
