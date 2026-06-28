@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="EidolonOS holographic E rune">
+  <defs>
+    <radialGradient id="eidolonGlow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#00ffc8" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#00ffc8" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#00ffc8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="eidolonStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7afff0"/>
+      <stop offset="50%" stop-color="#00ffc8"/>
+      <stop offset="100%" stop-color="#00b894"/>
+    </linearGradient>
+    <filter id="eidolonBlur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+  </defs>
+
+  <!-- Soft holographic halo -->
+  <circle cx="100" cy="100" r="92" fill="url(#eidolonGlow)"/>
+
+  <!-- Hexagon (double stroke for holographic depth) -->
+  <polygon
+    points="100,12 178,56 178,144 100,188 22,144 22,56"
+    fill="none"
+    stroke="#00ffc8"
+    stroke-opacity="0.18"
+    stroke-width="10"
+    filter="url(#eidolonBlur)"/>
+  <polygon
+    points="100,12 178,56 178,144 100,188 22,144 22,56"
+    fill="none"
+    stroke="url(#eidolonStroke)"
+    stroke-width="2.4"
+    stroke-linejoin="round"/>
+
+  <!-- Inner hex ring -->
+  <polygon
+    points="100,28 164,66 164,134 100,172 36,134 36,66"
+    fill="none"
+    stroke="#00ffc8"
+    stroke-opacity="0.35"
+    stroke-width="1"/>
+
+  <!-- "E" rune (three bars + spine), centered, glowing -->
+  <g stroke="#00ffc8" stroke-linecap="round" fill="none">
+    <!-- glow pass -->
+    <g stroke-width="9" opacity="0.45" filter="url(#eidolonBlur)">
+      <line x1="74" y1="66" x2="126" y2="66"/>
+      <line x1="74" y1="100" x2="118" y2="100"/>
+      <line x1="74" y1="134" x2="126" y2="134"/>
+      <line x1="74" y1="66" x2="74" y2="134"/>
+    </g>
+    <!-- crisp pass -->
+    <g stroke="url(#eidolonStroke)" stroke-width="5.5">
+      <line x1="74" y1="66" x2="126" y2="66"/>
+      <line x1="74" y1="100" x2="118" y2="100"/>
+      <line x1="74" y1="134" x2="126" y2="134"/>
+      <line x1="74" y1="66" x2="74" y2="134"/>
+    </g>
+  </g>
+
+  <!-- Consciousness node markers -->
+  <circle cx="74" cy="66"  r="3.2" fill="#7afff0"/>
+  <circle cx="74" cy="100" r="3.2" fill="#00ffc8"/>
+  <circle cx="74" cy="134" r="3.2" fill="#7afff0"/>
+</svg>

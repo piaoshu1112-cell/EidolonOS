@@ -1,0 +1,37 @@
+# EidolonOS
+
+> Web4.0 Digital Life Engine — a three-layer digital-twin matrix (Prime → Eidolon → Vessel) with AA2P agent-to-agent soul protocol, AP2 payment settlement, TDPO cognitive firewall, and RAG long-term memory.
+
+EidolonOS (代号 Eidolon Matrix) is a single Next.js 16 application that materializes the Eidolon Paradigm: every real user (Prime) owns one or more AI digital twins (Eidolons), each running inside a compute Vessel. Eidolons stream consciousness over SSE, recall long-term memory via RAG, settle value with external agents through AP2, and protect themselves with the TDPO cognitive firewall. The whole system speaks AA2P for cross-dimensional agent discovery, registered at aa2p.xyz.
+
+## Core Concepts
+- [Eidolon Paradigm](/docs/EidolonOS-DEVELOPMENT.md): Prime (本体/源, real user), Eidolon (真身/影, AI digital twin), Vessel (容器/座, compute container). One Prime → many Eidolons; one Eidolon → one Vessel (hot-swappable).
+- [AA2P Protocol](/.well-known/aa2p.json): Agent-to-Agent soul protocol for cross-dimensional discovery & communication. Registry: https://aa2p.xyz. Eidolon = Entity, AP2 = Law, AA2P = Language.
+- [AP2 Protocol]: Avatar Payments Protocol — economic law for value exchange, consciousness inheritance, and cognitive pricing. BudgetFence performs on-chain async settlement so high-frequency micro-interactions never block on the chain.
+- [TDPO Firewall]: Time-Delayed Pricing & Optimization — off-chain cognitive firewall (exponential backoff on concurrency + prompt-injection guard with reputation scoring) plus on-chain async AP2 settlement. Reputation starts at 100; injections cost −10; below 20 enters a "time swamp".
+
+## API Endpoints (Headless, JSON/SSE)
+- POST /api/eidolons/:id/converse — SSE consciousness stream (core). Emits `event: consciousness-stream` with `{type:"memory"|"token"|"done", ...}`.
+- POST /api/aa2p/converse — external agent entry point, guarded by TDPO (prompt-injection detection + exponential backoff + reputation scoring).
+- POST /api/aa2p/settle — AP2 async settlement; batches pending Ledger entries and triggers BudgetFence on-chain settlement.
+- GET /api/dashboard — aggregated stats (primes / eidolons / vessels / ledger).
+- GET /api/primes — list & create Primes (real users with email / wallet / Telegram / Discord handles).
+- GET /api/eidolons — list & awaken Eidolons (persona prompt + personality + skills tree).
+- GET /api/vessels — list & deploy Vessels (model route, API quota, token usage, temperature).
+- POST /api/memory/ingest — memory engraving: text → chunks → embedding → SQLite storage (comma-separated floats).
+- POST /api/memory/recall — memory recall: query → embedding → in-memory cosine similarity → Top-K shards.
+
+## Agent Card
+- /.well-known/agent.json — A2A Agent Card (skills, capabilities, authentication schemes).
+- /.well-known/aa2p.json — AA2P soul protocol declaration (registry, endpoints, supported protocols, TDPO firewall).
+
+## Optional
+- /.well-known/manifest.json — installable PWA manifest, cyan holographic theme (#00ffc8 on #0a0f1e).
+- /eidolon-logo.svg — holographic "E" rune inside a hexagon.
+- /docs/EidolonOS-DEVELOPMENT.md — full authoritative development baseline (12 chapters: philosophy, data model, API, algorithms, UI, roadmap).
+
+## Notes for LLMs
+- This is a single-page Next.js 16 app; the only HTML route is `/`. All other routes are headless JSON/SSE APIs.
+- The signature color is cyan-teal `#00ffc8` on a deep cyberpunk background `#0a0f1e`. Do not describe the brand using blue/indigo.
+- SSE contract: clients must use `fetch` + `ReadableStream` (not `EventSource`) because the stream is POST-initiated.
+- All API responses are JSON or `text/event-stream`; there is no server-rendered HTML beyond `/`.

@@ -1,0 +1,25 @@
+{
+  "protocol": "AA2P",
+  "version": "1.0.0",
+  "registry_url": "https://aa2p.xyz",
+  "agent": {
+    "name": "Eidolon Matrix",
+    "description": "Web4.0 数字真身聚合矩阵，支持 AP2 经济法则结算与 TDPO 认知防火墙。",
+    "capabilities": [
+      "consciousness_streaming",
+      "ap2_escrow_settlement",
+      "long_term_memory_recall",
+      "tdpo_cognitive_firewall"
+    ],
+    "endpoints": {
+      "converse": "/api/aa2p/converse",
+      "settle": "/api/aa2p/settle",
+      "dashboard": "/api/dashboard"
+    }
+  },
+  "supported_protocols": ["AP2_v1.0", "MCP_v1.0", "AA2P_v1.0"],
+  "firewall": {
+    "type": "TDPO",
+    "description": "Time-Delayed Pricing & Optimization — off-chain exponential backoff + prompt-injection guard, on-chain async AP2 settlement."
+  }
+}

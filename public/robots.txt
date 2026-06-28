@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# GEO — for AI crawlers
+LLMs-txt: /llms.txt
+
+# A2A agent discovery
+Agent-card: /.well-known/agent.json
+AA2P-card: /.well-known/aa2p.json
+
+# PWA
+Manifest: /.well-known/manifest.json

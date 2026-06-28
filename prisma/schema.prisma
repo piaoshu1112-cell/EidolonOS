@@ -1,0 +1,119 @@
+// EidolonOS — 三层生命架构 (The Eidolon Paradigm)
+// Prime (本体) → Eidolon (真身) → Vessel (容器)
+// SQLite 适配版：embedding 以逗号分隔浮点存储，内存余弦检索
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Prime — 本体（现实用户）
+model Prime {
+  id            String   @id @default(cuid())
+  email         String?  @unique
+  walletAddress String?  @unique
+  telegramId    String?  @unique
+  discordId     String?  @unique
+  handle        String?
+  displayName   String
+  reputation    Int      @default(100)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  eidolons      Eidolon[]
+  conversations Conversation[]
+  ledgers       Ledger[]
+}
+
+// Eidolon — 真身（AI 分身）
+model Eidolon {
+  id            String   @id @default(cuid())
+  name          String
+  personaPrompt String
+  personality   String   @default("{}")
+  skills        String   @default("[]")
+  status        String   @default("dormant")
+  primeId       String
+  prime         Prime    @relation(fields: [primeId], references: [id], onDelete: Cascade)
+  vesselId      String?
+  vessel        Vessel?  @relation(fields: [vesselId], references: [id])
+  memories      MemoryShard[]
+  conversations Conversation[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Vessel — 容器（算力环境）
+model Vessel {
+  id            String   @id @default(cuid())
+  codename      String
+  modelRoute    String   @default("glm-4.6")
+  apiQuota      Int      @default(100000)
+  tokensUsed    Int      @default(0)
+  status        String   @default("idle")
+  temperature   Float    @default(0.7)
+  maxTokens     Int      @default(2048)
+  eidolons      Eidolon[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// MemoryShard — 记忆分片（RAG 向量库，SQLite 适配）
+model MemoryShard {
+  id          String   @id @default(cuid())
+  eidolonId   String
+  eidolon     Eidolon  @relation(fields: [eidolonId], references: [id], onDelete: Cascade)
+  content     String
+  embedding   String
+  metadata    String   @default("{}")
+  source      String   @default("manual")
+  createdAt   DateTime @default(now())
+  @@index([eidolonId])
+}
+
+model Conversation {
+  id          String   @id @default(cuid())
+  primeId     String
+  prime       Prime    @relation(fields: [primeId], references: [id], onDelete: Cascade)
+  eidolonId   String
+  eidolon     Eidolon  @relation(fields: [eidolonId], references: [id], onDelete: Cascade)
+  channel     String   @default("web")
+  createdAt   DateTime @default(now())
+  messages    Message[]
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  tokensIn       Int      @default(0)
+  tokensOut      Int      @default(0)
+  createdAt      DateTime @default(now())
+}
+
+model Ledger {
+  id            String   @id @default(cuid())
+  primeId       String
+  prime         Prime    @relation(fields: [primeId], references: [id], onDelete: Cascade)
+  agentWallet   String
+  cognitiveValue Float   @default(0)
+  status        String   @default("pending")
+  txHash        String?
+  createdAt     DateTime @default(now())
+  settledAt     DateTime?
+}
+
+model Quest {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  reward      Int
+  type        String
+  targetCount Int      @default(1)
+  createdAt   DateTime @default(now())
+}

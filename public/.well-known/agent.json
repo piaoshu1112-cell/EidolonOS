@@ -1,0 +1,50 @@
+{
+  "name": "Eidolon Matrix",
+  "description": "提供 AI分身创建、AI容器调度、Web4社交图谱的聚合智能体服务。Three-layer digital-twin engine: Prime → Eidolon → Vessel.",
+  "url": "/api/aa2p/converse",
+  "version": "1.0.0",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false
+  },
+  "skills": [
+    {
+      "id": "create_ai_avatar",
+      "name": "创建 AI 分身 (Awaken Eidolon)",
+      "description": "根据人设 Prompt 唤醒一个具备长期记忆与技能树的数字真身。",
+      "inputModes": ["text"],
+      "outputModes": ["text", "json"]
+    },
+    {
+      "id": "consciousness_stream",
+      "name": "意识流交互",
+      "description": "与指定 Eidolon 进行 SSE 流式对话，唤起 RAG 长期记忆。",
+      "inputModes": ["text"],
+      "outputModes": ["text"]
+    },
+    {
+      "id": "query_vessel_status",
+      "name": "查询 AI 容器状态",
+      "description": "查询 Vessel 的运行状态、模型路由、Token 消耗与额度。",
+      "inputModes": ["text"],
+      "outputModes": ["json"]
+    },
+    {
+      "id": "ap2_settle",
+      "name": "AP2 异步清算",
+      "description": "批量结算链下账本，触发 AP2 BudgetFence 链上清算。",
+      "inputModes": ["json"],
+      "outputModes": ["json"]
+    },
+    {
+      "id": "memory_recall",
+      "name": "记忆唤醒",
+      "description": "基于查询检索 Eidolon 的长期记忆分片（RAG）。",
+      "inputModes": ["text"],
+      "outputModes": ["json"]
+    }
+  ],
+  "authentication": {
+    "schemes": ["bearer", "apikey"]
+  }
+}
