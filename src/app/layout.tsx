@@ -46,6 +46,12 @@ export const metadata: Metadata = {
     description:
       "Web4.0 Digital Life Engine — Prime → Eidolon → Vessel",
   },
+  // Tell browser translation extensions (Quark/Google Translate) NOT to inject
+  // <font class="quark-translated-font"> wrappers into our DOM — those
+  // injections happen between server-render and client hydration, breaking React.
+  other: {
+    google: "notranslate",
+  },
 };
 
 export const viewport: Viewport = {
@@ -84,9 +90,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html
+      lang="en"
+      className="dark"
+      translate="no"
+      suppressHydrationWarning
+    >
+      <head>
+        <meta name="google" content="notranslate" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased dark bg-background text-foreground`}
+        suppressHydrationWarning
       >
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <main className="min-h-screen flex flex-col">{children}</main>
