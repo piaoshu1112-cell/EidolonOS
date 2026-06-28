@@ -96,6 +96,9 @@ Open the **Preview Panel on port 3000** — the Eidolon Matrix Console renders a
 
 > SSE note: the consciousness stream is POST-initiated, so the frontend uses `fetch` + `ReadableStream` (not `EventSource`) to parse `event: consciousness-stream` frames.
 
+📖 **Full usage & testing guide**: [`docs/USAGE.md`](./docs/USAGE.md) — 界面操作、API curl 命令、SEO/GEO 验证、部署说明、FAQ
+📖 **Architecture & dev spec**: [`docs/EidolonOS-DEVELOPMENT.md`](./docs/EidolonOS-DEVELOPMENT.md) — 12 章节权威开发基线
+
 ---
 
 ## Project Structure
