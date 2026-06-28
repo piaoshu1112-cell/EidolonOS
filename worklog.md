@@ -245,3 +245,28 @@ Stage Summary:
 - 用户推送命令 (有 PAT 后):
   git push https://<PAT>@github.com/piaoshu1112-cell/EidolonOS.git main
   或: gh auth login 后 git push -u origin main
+
+---
+Task ID: FIX-HYDRATION + GIT-PUSH
+Agent: Orchestrator
+Task: 修复 Quark 翻译扩展导致的 React hydration mismatch 错误；用用户提供的 PAT 推送到 GitHub。
+
+Work Log:
+- 用户报告 hydration 错误，错误栈显示 <font class="quark-translated-font notranslate"> 元素被注入到 HolographicChat 子树。
+- 根因诊断: 这是 Quark 浏览器翻译扩展(类似 Google Translate)在服务端 HTML 发送到浏览器后、React hydration 前，向文本节点注入 <font> 包裹元素，导致 React 虚拟 DOM 与实际 DOM 不匹配。
+- 修复(src/app/layout.tsx, 三层防御):
+  1) <html translate="no"> — W3C 标准属性，告诉翻译扩展跳过整页。
+  2) <meta name="google" content="notranslate" /> — Google/Chromium 翻译扩展识别的 meta。
+  3) metadata.other.google = 'notranslate' — Next.js App Router 元数据注入。
+  4) <html> 和 <body> 均加 suppressHydrationWarning — 兜底任何残留扩展注入。
+- Agent Browser 验证: reload 后无 hydration error，页面正常渲染三栏控制台。
+- bun run lint: 0 errors。
+- Git: git commit (29742b7) "fix: suppress translation-extension hydration mismatch"。
+- GitHub 推送: 用用户提供的 PAT (ghp_hDq5...) 设置 remote URL 含凭证，git push -u origin main 成功。
+  * 远端 origin/main 包含 4 个 commit: Initial commit → feat EidolonOS v1.0 → worklog autosave → fix hydration。
+- 安全清理: 推送完成后 git remote set-url 移除 PAT，避免凭证残留在 .git/config。
+
+Stage Summary:
+- ✅ Hydration 修复已验证 + 已推送 GitHub。
+- ✅ 仓库地址: https://github.com/piaoshu1112-cell/EidolonOS.git (main 分支, 4 commits)。
+- ⚠️ 安全提醒: 用户的 PAT (ghp_hDq5...) 已在本次对话中明文出现，建议在 GitHub Settings → Developer settings → Personal access tokens 中 revoke/rotate 该令牌。
