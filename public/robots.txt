@@ -2,12 +2,42 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-# GEO — for AI crawlers
+# === AI/LLM crawler allowlist (GEO core) ===
+# Explicitly allow generative-engine crawlers so EidolonOS appears in
+# ChatGPT, Claude, Perplexity, Gemini answers.
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+# === GEO — LLM manifest ===
 LLMs-txt: /llms.txt
 
-# A2A agent discovery
+# === A2A / AA2P agent discovery ===
 Agent-card: /.well-known/agent.json
 AA2P-card: /.well-known/aa2p.json
 
-# PWA
-Manifest: /.well-known/manifest.json
+# === PWA ===
+Manifest: /manifest.webmanifest
+
+# === Sitemap ===
+Sitemap: https://eidolonos.app/sitemap.xml

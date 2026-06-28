@@ -14,8 +14,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://eidolonos.app";
+
 export const metadata: Metadata = {
-  title: "EidolonOS · 数字真身矩阵",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "EidolonOS · 数字真身矩阵",
+    template: "%s · EidolonOS",
+  },
   description:
     "Web4.0 Digital Life Engine — Prime → Eidolon → Vessel. Holographic cyberpunk AI agent platform with consciousness streaming, RAG memory, AA2P protocol and TDPO cognitive firewall.",
   keywords: [
@@ -26,31 +32,56 @@ export const metadata: Metadata = {
     "Digital Life",
     "Web4.0",
     "AI Agent",
+    "Digital Twin",
     "数字真身矩阵",
+    "AI 分身",
+    "智能体中台",
   ],
   authors: [{ name: "EidolonOS Architect" }],
+  creator: "EidolonOS",
   applicationName: "EidolonOS",
-  icons: {
-    icon: "/logo.svg",
+  alternates: {
+    canonical: "/",
   },
+  icons: {
+    icon: [{ url: "/eidolon-logo.svg", type: "image/svg+xml" }],
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
+  manifest: "/manifest.webmanifest",
   openGraph: {
     title: "EidolonOS · 数字真身矩阵",
     description:
       "Web4.0 Digital Life Engine — Prime → Eidolon → Vessel",
+    url: SITE_URL,
     siteName: "EidolonOS",
     type: "website",
+    locale: "en_US",
+    alternateLocale: ["zh_CN"],
   },
   twitter: {
     card: "summary_large_image",
     title: "EidolonOS · 数字真身矩阵",
     description:
       "Web4.0 Digital Life Engine — Prime → Eidolon → Vessel",
+    creator: "@eidolonos",
   },
-  // Tell browser translation extensions (Quark/Google Translate) NOT to inject
-  // <font class="quark-translated-font"> wrappers into our DOM — those
-  // injections happen between server-render and client hydration, breaking React.
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  // GEO — let AI crawlers (GPTBot/ClaudeBot/PerplexityBot) index content.
+  // SEO — full indexing. Notranslate — prevent extension-injected hydration mismatch.
   other: {
     google: "notranslate",
+    "ai-agent-indexing": "allowed",
   },
 };
 
