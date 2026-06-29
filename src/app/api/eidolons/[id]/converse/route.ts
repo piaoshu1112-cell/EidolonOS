@@ -64,10 +64,20 @@ export async function POST(
     })
   }
 
-  const eidolon = await db.eidolon.findUnique({
+  let eidolon = await db.eidolon.findUnique({
     where: { id: eidolonId },
     include: { vessel: true, prime: true },
   })
+
+  // Vercel fallback: each serverless instance has its own ephemeral DB with
+  // freshly-seeded UUIDs. If the requested ID doesn't exist in THIS instance,
+  // fall back to the first available Eidolon (always 'Echo-01' after seed).
+  if (!eidolon) {
+    eidolon = await db.eidolon.findFirst({
+      where: { status: 'active' },
+      include: { vessel: true, prime: true },
+    })
+  }
   if (!eidolon) {
     return new Response(JSON.stringify({ error: 'Eidolon not found' }), {
       status: 404,
@@ -83,6 +93,9 @@ export async function POST(
   // Capture the vessel into a narrowed const so TypeScript keeps the
   // non-null narrowing alive inside the ReadableStream closure.
   const vessel = eidolon.vessel
+  // Use the eidolon's actual primeId (from DB) — on Vercel the request
+  // primeId may belong to a different ephemeral instance.
+  const effectivePrimeId = eidolon.primeId || primeId
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
@@ -97,13 +110,13 @@ export async function POST(
       }
       try {
         // [a] Recall long-term memory shards.
-        const shards = await recallMemory(eidolonId, message, 5)
+        const shards = await recallMemory(eidolon.id, message, 5)
         emit({ type: 'memory', shards: shards.length })
 
         // [b] Find or create the (prime, eidolon, channel) conversation
         // and pull the last 6 turns for the consciousness prompt.
         let conversation = await db.conversation.findFirst({
-          where: { primeId, eidolonId, channel },
+          where: { primeId: effectivePrimeId, eidolonId: eidolon.id, channel },
           orderBy: { createdAt: 'desc' },
           include: {
             messages: { orderBy: { createdAt: 'desc' }, take: 6 },
@@ -111,7 +124,7 @@ export async function POST(
         })
         if (!conversation) {
           conversation = await db.conversation.create({
-            data: { primeId, eidolonId, channel },
+            data: { primeId: effectivePrimeId, eidolonId: eidolon.id, channel },
             include: { messages: true },
           })
         }
