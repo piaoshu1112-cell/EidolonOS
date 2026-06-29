@@ -2,17 +2,21 @@
  * llm-router.ts — Model Router / Vessel Streaming Conduit
  * ------------------------------------------------------------------
  * The Vessel is the compute vessel that hosts an Eidolon. This module
- * is the only place where z-ai-web-dev-sdk is invoked. It speaks the
+ * is the only place where LLM APIs are invoked. It speaks the
  * streaming chat protocol (SSE) and returns either a raw Web
  * ReadableStream for pass-through SSE consumers, or a fully aggregated
  * string for one-shot callers (AP2 settlement receipts, AA2P external
  * agents, fallback paths).
  *
+ * DUAL PROVIDER STRATEGY:
+ * - In Z.ai sandbox: uses z-ai-web-dev-sdk (reads .z-ai-config)
+ * - On Vercel/external: uses OpenAI-compatible API via env vars
+ *   (OPENAI_API_KEY + OPENAI_BASE_URL, or any compatible endpoint)
+ *
  * ⚠️ Server-only. Never import this from a Client Component.
- * z-ai-web-dev-sdk MUST stay behind this boundary.
  */
 import ZAI from 'z-ai-web-dev-sdk'
-import './zai-bootstrap' // side-effect: synthesizes .z-ai-config from env vars on Vercel
+import './zai-bootstrap' // side-effect: synthesizes .z-ai-config from env vars
 
 export interface VesselMessage {
   role: 'system' | 'user' | 'assistant'
@@ -25,9 +29,19 @@ export interface VesselCallOpts {
 }
 
 /**
- * Lazily-instantiated singleton ZAI client. The SDK reads env vars on
- * create(); we cache the promise so HMR / concurrent calls don't pay
- * repeated init cost.
+ * Detect which LLM provider to use.
+ * - 'zai' if .z-ai-config exists (Z.ai sandbox) OR ZAI_* env vars set
+ * - 'openai' if OPENAI_API_KEY is set (Vercel/external)
+ */
+function getProvider(): 'zai' | 'openai' {
+  // Explicit OpenAI config takes priority on Vercel
+  if (process.env.OPENAI_API_KEY) return 'openai'
+  // Otherwise try z-ai (sandbox or ZAI_* env vars)
+  return 'zai'
+}
+
+/**
+ * Lazily-instantiated singleton ZAI client.
  */
 type ZAIClient = Awaited<ReturnType<typeof ZAI.create>>
 let zaiPromise: Promise<ZAIClient> | null = null
@@ -40,16 +54,23 @@ async function getZAI(): Promise<ZAIClient> {
 
 /**
  * Open a streaming chat completion against the bound Vessel (LLM).
- * Returns the raw Web ReadableStream<Uint8Array> from the SDK so the
- * caller can pump SSE tokens straight to the client (consciousness stream).
+ * Returns the raw Web ReadableStream<Uint8Array> so the caller can pump
+ * SSE tokens straight to the client (consciousness stream).
  *
- * Returns null if the SDK unexpectedly yields no body — callers should
- * fall back to `completeFromVessel`.
+ * Returns null if the provider yields no body — callers should fall
+ * back to `completeFromVessel`.
  */
 export async function streamFromVessel(
   messages: VesselMessage[],
   opts?: VesselCallOpts,
 ): Promise<ReadableStream<Uint8Array> | null> {
+  const provider = getProvider()
+
+  if (provider === 'openai') {
+    return streamOpenAICompatible(messages, opts)
+  }
+
+  // Z.ai sandbox path
   const zai = await getZAI()
   const body: Record<string, unknown> = {
     messages,
@@ -61,14 +82,48 @@ export async function streamFromVessel(
   const response = await zai.chat.completions.create(
     body as Parameters<typeof zai.chat.completions.create>[0],
   )
-  // SDK contract: when stream:true, the SDK returns `response.body`
-  // from the underlying fetch — i.e. the ReadableStream itself (NOT
-  // an object wrapping it). We handle both shapes defensively.
   if (response instanceof ReadableStream) {
     return response
   }
   const streamBody = (response as { body?: ReadableStream<Uint8Array> | null }).body
   return streamBody ?? null
+}
+
+/**
+ * OpenAI-compatible streaming (works with OpenAI, Azure OpenAI, Together,
+ * Groq, OpenRouter, z.ai public API, etc.)
+ */
+async function streamOpenAICompatible(
+  messages: VesselMessage[],
+  opts?: VesselCallOpts,
+): Promise<ReadableStream<Uint8Array> | null> {
+  const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
+  const apiKey = process.env.OPENAI_API_KEY!
+  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+
+  const body: Record<string, unknown> = {
+    model,
+    messages,
+    stream: true,
+  }
+  if (opts?.temperature !== undefined) body.temperature = opts.temperature
+  if (opts?.maxTokens !== undefined) body.max_tokens = opts.maxTokens
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`LLM API ${response.status}: ${text.slice(0, 200)}`)
+  }
+
+  return response.body as ReadableStream<Uint8Array>
 }
 
 /**
