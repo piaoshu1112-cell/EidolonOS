@@ -414,3 +414,22 @@ Stage Summary:
   * footer 仍 sticky (mt-auto + flex flex-col)，3 列响应式 (lg+ 280px|1fr|340px) 不变，移动端 6-tab 折叠。
   * TypeScript strict 模式 0 errors（仅我新增/修改的文件）。
 - 阻塞/遗留：无。两个未实现后端端点 (/api/models, /api/translate) 已在前端做 graceful fallback，后续后端补齐时前端零修改。Provider store 持久化的 API key 仅在浏览器 localStorage，通过 x-llm-* headers 发到同源后端，永不发往第三方域名（符合 spec 安全约束）。
+
+---
+Task ID: 5-FINAL
+Agent: Orchestrator
+Task: Multi-provider free models + zh/en i18n + real-time translation — integration, verification, deploy.
+
+Work Log:
+- 2 个并行子agent完成: 5-a(后端 6 文件) + 5-b(前端 14 文件)。
+- bun run lint: 0 errors。
+- Agent Browser 验证: 语言切换(中↔英)正常, MODEL tab 显示 7 个 provider 配置面板, 翻译 API 本地正常。
+- Git commit (04d919c) + push GitHub + Vercel 部署成功。
+- Vercel 验证: 首页 200, /api/models 返回 7 providers, /api/translate 需用户配置 provider key 后可用。
+
+Stage Summary:
+- ✅ 3 大功能全部上线 (Vercel: https://my-project-nine-nu-52.vercel.app)
+- ✅ 7 个免费/付费 LLM 提供商可选 (Groq/OpenRouter/Gemini/Together/Cerebras/OpenAI/Z.ai)
+- ✅ 中英文切换 (290 个翻译 key, 全组件国际化)
+- ✅ 实时翻译 (每条 AI 消息可翻译, 用同一 provider 调用)
+- 下一步: 更新使用手册 (Task 2)
