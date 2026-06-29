@@ -40,4 +40,4 @@ AA2P-card: /.well-known/aa2p.json
 Manifest: /manifest.webmanifest
 
 # === Sitemap ===
-Sitemap: https://eidolonos.app/sitemap.xml
+Sitemap: https://eidolonos.xyz/sitemap.xml

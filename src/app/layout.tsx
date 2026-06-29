@@ -14,12 +14,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://eidolonos.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://eidolonos.xyz";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "EidolonOS · 数字真身矩阵",
+    default: "EidolonOS · 数字真身矩阵 | Web4.0 Digital Life Engine",
     template: "%s · EidolonOS",
   },
   description:
@@ -90,19 +90,25 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-const jsonLd = {
+// JSON-LD structured data — embed both SoftwareApplication and WebSite
+// schemas so search engines and AI crawlers (GPTBot/ClaudeBot/PerplexityBot)
+// can fully parse the project. WebSite enables sitelinks + richer cards.
+const jsonLdSoftwareApplication = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "EidolonOS",
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Web",
+  url: SITE_URL,
   description:
     "Web4.0 Digital Life Engine — Prime → Eidolon → Vessel. Holographic cyberpunk AI agent platform with consciousness streaming, RAG memory, AA2P protocol and TDPO cognitive firewall.",
   featureList: [
     "Consciousness Streaming",
-    "RAG Memory",
+    "RAG Long-Term Memory",
     "AA2P Protocol",
-    "TDPO Firewall",
+    "TDPO Cognitive Firewall",
+    "AP2 Async Settlement",
+    "Holographic Cyberpunk UI",
   ],
   offers: {
     "@type": "Offer",
@@ -112,6 +118,22 @@ const jsonLd = {
   author: {
     "@type": "Person",
     name: "15+ Years Architect",
+  },
+};
+
+const jsonLdWebSite = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "EidolonOS",
+  alternateName: "数字真身矩阵",
+  url: SITE_URL,
+  description:
+    "Web4.0 Digital Life Engine — create your AI digital twin, stream consciousness, settle value across dimensions.",
+  inLanguage: ["en", "zh"],
+  publisher: {
+    "@type": "Organization",
+    name: "EidolonOS",
+    url: SITE_URL,
   },
 };
 
@@ -140,7 +162,13 @@ export default function RootLayout({
         </ThemeProvider>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLdSoftwareApplication),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdWebSite) }}
         />
       </body>
     </html>

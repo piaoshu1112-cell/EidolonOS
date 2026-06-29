@@ -433,3 +433,136 @@ Stage Summary:
 - ✅ 中英文切换 (290 个翻译 key, 全组件国际化)
 - ✅ 实时翻译 (每条 AI 消息可翻译, 用同一 provider 调用)
 - 下一步: 更新使用手册 (Task 2)
+
+---
+Task ID: 6-c
+Agent: general-purpose (Blog)
+Task: 撰写 TDPO 认知防火墙技术博客 (中英双语, 2000-3000 字), 并建立 /blog 目录与索引。
+
+Work Log:
+- 读取 worklog.md (435 行历史) 了解项目全貌与已完成 Task 0-2 范围。
+- 读取 docs/EidolonOS-DEVELOPMENT.md §6.3 (TDPO 认知防火墙) + §6.4 (AP2 异步清算), 抓取分层防御表、信誉分模型、"每月结账的法院"隐喻。
+- 读取 src/lib/eidolon/tdpo-firewall.ts (171 行) 全量源码, 验证: CONCURRENCY_LIMIT=5, REPUTATION_FLOOR=20, HARD_429_THRESHOLD=15s, MAX_DELAY=30s, INJECTION_PENALTY=10, 5 条 regex 黑名单, tdpoGuard/acquire/release/detectInjection 实现细节。
+- 读取 src/app/api/aa2p/converse/route.ts 验证 TDPO 守卫挂载方式 (verdict → sleep → finally release)。
+- 读取 src/lib/eidolon/ap2-settlement.ts 前 60 行, 确认 recordLedger/settlePending 与 BudgetFence 批量上链语义。
+- 创建 /home/z/my-project/blog/ 目录。
+- 撰写 blog/tdpo-cognitive-firewall.md: 9 章节 (引言/第一性原理/三层防御/信誉分/代码实现/实战演示/对比/演进/结语), 每节中文在前英文在后; 含 2 个 ASCII 图 (不可能三角 + 三层防御架构), 3 段 TypeScript 代码节选 (指数退避/INJECTION_PATTERNS/tdpoGuard 主体), 2 个对比表 (信誉分模型 + 方案对比); 末尾作者署名。
+- wc -w 验证 2219 词, 命中 2000-3000 目标区间。
+- 创建 blog/README.md 索引 (当前 1 篇 + 4 篇 Upcoming 预告 + MIT 协议)。
+
+Stage Summary:
+- 产出物:
+  * /home/z/my-project/blog/tdpo-cognitive-firewall.md (2219 词, 中英双语, 9 节)
+  * /home/z/my-project/blog/README.md (博客索引)
+- 关键决策:
+  * 中文在前英文在后, 每节独立分隔, 便于 SEO 与双语读者导航。
+  * 代码节选全部来自真实源码 (tdpo-firewall.ts + aa2p converse route.ts), 无虚构 API。
+  * 引用 docs/EidolonOS-DEVELOPMENT.md §6.3-6.4 作为设计依据, 顶部 metadata 标注 source files 路径。
+  * 严格无 emoji 在标题中; 作者署名行明确标注 "EidolonOS Architect · 15+ years full-stack · Building Web4.0 digital life"。
+  * Phase 1-4 演进路线与代码注释一致 (in-memory → Redis → AI 分类器 → 链上信誉证明), 不超前承诺未实现功能。
+- 下一步: 该博客为静态 Markdown, 不挂载 Next.js 路由 (满足约束); 若需 SEO 抓取可在 sitemap.ts 或 public/llms.txt 中追加 /blog 链接 (留给后续 Task)。
+
+---
+Task ID: 6-a
+Agent: full-stack-developer (Landing Page)
+Task: Restructure routing — `/` becomes a Server Component marketing landing page (SEO/GEO-friendly), `/console` hosts the existing 3-column holographic MatrixConsole. New canonical domain `eidolonos.xyz`, enhanced JSON-LD (SoftwareApplication + WebSite), new `/llms-full.txt` (full-text version of dev doc per llms.txt spec).
+
+Work Log:
+- 必读步骤：读 worklog.md (Task 0/2-a/2-b/2-c/5-a/5-b/5-FINAL 全部历史)，确认 v2.0 多 provider + i18n 已上线；读 docs/EidolonOS-DEVELOPMENT.md (12 章权威基线)；读 src/app/page.tsx (旧版直接渲染 MatrixConsole)；读 src/app/layout.tsx (root metadata + JSON-LD SoftwareApplication)；读 src/components/eidolon/matrix-console.tsx (3 栏全息控制台 + sticky footer + TanStack Query + Zustand)；读 src/lib/i18n/translations.ts (确认 i18n key 体系)；读 src/app/globals.css (hologram-panel / eidolon-text-glow / animate-* 全息工具类)；列 src/components/ui/ (确认 Badge/Button/Card 可用)。
+- 创建 src/app/console/page.tsx：'use client' 客户端组件，渲染 <MatrixConsole />，包 div.min-h-screen.flex.flex-col 外壳。原 / 的所有功能(SSE 意识流/RAG 记忆/AA2P 协议/TDPO 防火墙/多 provider/中英文切换/翻译)100% 平移至 /console，零修改 MatrixConsole 自身。
+- 创建 src/components/landing/landing-client.tsx：'use client' 客户端封装层。导出 (1) LandingBackground → 渲染 <ParticleBg /> 复用现有粒子意识流；(2) Reveal → framer-motion whileInView 一次性 fade-in + slide-up (duration 0.55s, ease [0.22,1,0.36,1], viewport once+margin -80px)，支持 as prop 渲染 div/section/article/li/header；(3) HeroReveal → 更重的入场动画(scale 0.94→1 + blur 8px→0 + opacity)。SEO 关键决策：children 在服务端渲染并写入初始 HTML，framer-motion 只通过 CSS 改 opacity/transform，爬虫看到完整文本。
+- 重写 src/app/page.tsx (Server Component，无 'use client')：8 大区块 + 5 个子组件，约 580 行。
+  * Hero：120px eidolon-logo.svg (drop-shadow cyan glow + aura-pulse 动画) + 4 个 Badge (AA2P v1.0 cyan / AP2 Ready emerald / TDPO Protected amber / Open Source violet) + H1 "EidolonOS" (text-8xl mono cyan glow hologram-flicker) + 副标 "数字真身矩阵 · Web4.0 Digital Life Engine" + tagline 双语 + 2 CTA (Enter Console 主色 cyan / View on GitHub 次级 outline) + free-tier 提示。
+  * Three-Layer Architecture：3 张 ArchCard (Prime cyan / Eidolon violet / Vessel emerald)，每张含 lucide icon + L1/L2/L3 层级标签 + 中英双语名 + 中英双语描述；中间 2 个 ArchArrow (owns/拥有 + runs in/运行于)，桌面横向 ArrowRight 图标 + 标签，移动端旋转 90° 向下。
+  * Features Grid：6 张 FeatureCard (3×2 桌面 / 2×3 平板 / 1×6 移动)，每张含 lucide icon + emoji + 中英双语标题 + 中英双语描述，hover 边框加亮 + cyan shadow。
+  * Protocol Ecosystem：3 张 ProtocolPillar (Eidolon=Entity cyan / AP2=Law emerald / AA2P=Language violet 含 aa2p.xyz 外链)，底部 1 个 hologram-panel 总结卡解释 Grand Unification。
+  * Quick Start：3 个 CodeStep (clone/install+seed/dev)，每个含 step 序号圆形徽章 + 中英标题 + hologram-panel 包裹的 <pre><code> 代码块 (scrollbar-cyan 滚动条)。
+  * Tech Stack：9 个 TechBadge (Next.js 16/TypeScript/Prisma+SQLite/z-ai SDK/shadcn/ui/Tailwind 4/Zustand/TanStack Query/Framer Motion)，3×3 网格。
+  * Live Demo CTA：border-flow-cyan 流光边框大卡，"Launch Matrix Console" 主按钮 + Groq 免费额度提示。
+  * Footer (sticky mt-auto)：eidolon-logo 32px + © EidolonOS + AA2P v1.0 · AP2 Ready · Built by 15+ Years Architect + 5 个导航链接 (GitHub/Docs/Console/aa2p.xyz/llms.txt)。
+- 更新 src/app/layout.tsx：(1) SITE_URL fallback 从 eidolonos.app 改 eidolonos.xyz；(2) title.default 改 "EidolonOS · 数字真身矩阵 | Web4.0 Digital Life Engine"；(3) JSON-LD 拆成两个独立 script tag —— jsonLdSoftwareApplication (增 url + 扩 featureList 至 6 项含 AP2/Holographic UI) + jsonLdWebSite (新增，含 alternateName 数字真身矩阵 + inLanguage [en,zh] + publisher Organization)；(4) alternates.canonical 保留 "/" (metadataBase 自动解析为 https://eidolonos.xyz)；(5) 其余 metadata (keywords/openGraph/twitter/robots/viewport) 全部保留。
+- 更新 src/app/sitemap.ts：base 从 eidolonos.app 改 eidolonos.xyz；新增 /console (priority 0.8, weekly) 与 /llms-full.txt (priority 0.9, weekly) 两条；保留 / /llms.txt /.well-known/agent.json /.well-known/aa2p.json 共 6 条。
+- 更新 public/robots.txt：Sitemap 行从 https://eidolonos.app/sitemap.xml 改 https://eidolonos.xyz/sitemap.xml。其余 11 行 (User-agent allowlist + LLMs-txt/Agent-card/AA2P-card/Manifest 指针) 保留。
+- 创建 public/llms-full.txt：直接 cp docs/EidolonOS-DEVELOPMENT.md (533 行 25KB)。符合 llms.txt spec 的 "full-text version" —— AI 爬虫(GPTBot/ClaudeBot/PerplexityBot)抓到 /llms.txt 摘要后，可继续抓 /llms-full.txt 拿到完整 12 章架构基线(哲学/数据模型/API/算法/UI/排期/避坑/运维/仓库信息)。
+- 调试：首次 lint 报 4 个 react/jsx-no-undef (Badge 未导入) —— 因 page.tsx 是新建文件，忘了从 @/components/ui/badge 导入 Badge。补 import { Badge } from "@/components/ui/badge" 后 lint 0 error 0 warning。
+- 验证 (curl 全部通过)：
+  * GET / → 200 HTML，<title>EidolonOS · 数字真身矩阵 | Web4.0 Digital Life Engine</title>，<link rel="canonical" href="https://eidolonos.xyz"/>，<meta property="og:url" content="https://eidolonos.xyz"/>，HTML 含全部营销文案(EidolonOS/数字真身矩阵/Enter Console/Three-Layer Life/Consciousness Streaming/Quick Start/aa2p.xyz/Launch Matrix Console/Built by 15)。
+  * GET /console → 200 HTML，加载 src_app_console_page_tsx chunk，MatrixConsole 完整功能保留。
+  * GET /llms-full.txt → 200，533 行完整 dev doc。
+  * GET /sitemap.xml → 200，6 条 URL 全 base eidolonos.xyz (含 /console priority 0.8 + /llms-full.txt priority 0.9)。
+  * JSON-LD 验证：HTML 含 2 个 application/ld+json script，@type 集合 = {SoftwareApplication, WebSite, Offer, Organization, Person} —— 两个 schema 都生效。
+  * bun run lint → 0 errors 0 warnings (全 repo)。
+
+Stage Summary:
+- 产出文件（共 7 个：4 新建 + 3 修改）：
+  * src/app/console/page.tsx                    (新建, 19 行, 'use client' 客户端路由)
+  * src/components/landing/landing-client.tsx   (新建, 89 行, 'use client' 粒子背景 + Reveal/HeroReveal framer-motion 封装)
+  * src/app/page.tsx                            (重写, 583 行, Server Component 营销首页, 8 区块 + 5 子组件)
+  * src/app/layout.tsx                          (修改, SITE_URL→eidolonos.xyz + title 增强 + JSON-LD 拆双 schema)
+  * src/app/sitemap.ts                          (修改, base→eidolonos.xyz + 新增 /console + /llms-full.txt)
+  * public/robots.txt                           (修改, Sitemap 行→eidolonos.xyz)
+  * public/llms-full.txt                        (新建, 533 行, cp docs/EidolonOS-DEVELOPMENT.md)
+- 关键决策：
+  * 路由分家：`/` Server Component (爬虫拿完整 HTML+营销文案+JSON-LD×2)，`/console` 客户端组件 (MatrixConsole 完整保留)。matrix-console.tsx 本身零修改，避免破坏 v2.0 已上线的多 provider + i18n + 翻译功能。
+  * SEO/GEO 双重优化：page.tsx 是 Server Component，所有营销文案(EidolonOS/数字真身矩阵/Prime/Eidolon/Vessel/AA2P/AP2/TDPO/RAG/SSE/consciousness streaming/Quick Start)在初始 HTML 中——GPTBot/ClaudeBot/PerplexityBot/Googlebot 都能直接读取；JSON-LD 同时声明 SoftwareApplication (产品卡) + WebSite (sitelinks) 双 schema，最大化 SERP 富片段概率。
+  * framer-motion SEO 兼容：Reveal 的 children 在服务端渲染并写入 HTML，motion 只改 CSS opacity/transform，不删除 DOM 节点——爬虫看到完整文本，用户看到流畅动画，两不误。
+  * 双语策略：中文用于诗意/哲学/强调(数字真身矩阵/三层生命架构/六大核心能力/即刻体验/铸造你的 AI 数字真身)，英文用于技术术语(Web4.0 Digital Life Engine/Consciousness Streaming/RAG/AA2P/AP2/TDPO/Quick Start)——呼应 EidolonOS 自身"东方哲学 + 西方工程"的双重身份。
+  * 调色板严守约束：cyan (#00ffc8) 主色 + emerald (AP2 Ready/Vessel/configured) + amber (TDPO Protected/warning) + violet (Open Source/Eidolon/译文)，零 indigo/blue。
+  * Footer 在两页都 sticky：layout.tsx 的 <main className="min-h-screen flex flex-col"> 提供 root flex 容器；page.tsx 根 div 用 flex flex-col flex-1，footer 用 mt-auto 推到底；console/page.tsx 同款 min-h-screen flex flex-col 外壳。
+  * 域名迁移：eidolonos.app → eidolonos.xyz (3 处：layout.tsx SITE_URL fallback / sitemap.ts base / robots.txt Sitemap 行)。canonical/og:url 自动通过 metadataBase 解析为 https://eidolonos.xyz。
+  * llms-full.txt 符合 llms.txt spec：/llms.txt 是摘要 + 链接，/llms-full.txt 是全文(533 行 12 章基线)，AI 爬虫可分两层抓取。
+- 阻塞/遗留：无。所有 7 个文件已落地，lint 0 error，curl / /console /llms-full.txt /sitemap.xml 全 200。matrix-console.tsx 及其 14 个依赖组件(PrimePanel/EidolonPanel/VesselPanel/HolographicChat/MemoryVault/AA2PProtocol/ProviderSettings/SystemStatus/LangToggle 等)未触碰，v2.0 功能 100% 保留。
+
+---
+Task ID: 6-b
+Agent: full-stack-developer (TG Bot)
+Task: Build a standalone Telegram Bot mini-service (`mini-services/telegram-bot/`) for @EidolonOS_Bot using Bun + Telegraf v4. Implements the "Eidolon awakening ritual" (design doc §7.3) — /start greeting, /awaken Prime registration + Eidolon selection, typewriter consciousness stream over SSE, /help, /clear. Reuses the EidolonOS Headless API for ALL AI logic; NO Prisma, NO z-ai-web-dev-sdk in the bot.
+
+Work Log:
+- 必读步骤：读 worklog.md（Task 0 → 5-FINAL 全历史），确认主 Next.js 应用跑在 port 3000 且 /api/dashboard、/api/primes、/api/eidolons、/api/eidolons/[id]/converse (SSE) 全部健康；读 docs/EidolonOS-DEVELOPMENT.md §7.3（TG Bot 唤醒语）+ §3.2（目录结构）+ §5（API 契约）+ §7.1（cyan/teal 视觉语言）；读 examples/websocket/server.ts（mini-service 模式：独立 bun 项目，port 3003，bun --hot）；读 Caddyfile（?XTransformPort=<port> 网关路由）；读 src/app/api/eidolons/[id]/converse/route.ts 确认 SSE 契约 event: consciousness-stream + data:{type:"memory"|"token"|"done"|"error"}；读 src/app/api/primes/route.ts 确认 POST 返回 {success, prime} 且会主动唤醒一个默认 Eidolon；读 scripts/seed.ts 确认种子 Eidolons 是 Echo-01（哲学家）+ Specter-02（协议守护者）。
+- 创建 mini-services/telegram-bot/ 目录 + 7 个文件：
+  * package.json — type:module, dev:"bun --hot index.ts", 单依赖 telegraf@^4.16.3
+  * .env — 真实 TG_BOT_TOKEN + API_BASE_URL=http://localhost:3000 + BOT_PORT=3003（git-ignored）
+  * .env.example — 模板带占位符（committed）
+  * .gitignore — 忽略 .env / node_modules / bun.lockb / 构建产物
+  * tsconfig.json — strict + ESNext + lib:ES2022,DOM（提供 fetch/ReadableStream 类型）
+  * README.md — 运行说明 + 命令表 + typewriter 流程解释 + 网关说明
+  * index.ts — ~620 行完整 bot 实现
+- index.ts 关键实现点：
+  1) MarkdownV2 转义中心化：escapeMdV2() 正则 /([_*\[\]()~`>#+\-=|{}.!\\])/g 转义全部 20 个 TG 特殊字符 + 反斜杠。所有动态文本（AI 响应、显示名、错误消息）发送前转义。仪式模板用预转义字面量（\\[ \\. \\( 等）使设计文档的精确 MarkdownV2 源码正确渲染。
+  2) SSE 解析器：读 response.body.getReader()（Web 标准，Bun 兼容），按 \n\n 分割，合并多行 data: 字段，JSON 解析每个事件。处理 memory（更新 placeholder 显示 shard 数）/ token（累积 + 节流 edit）/ error（替换为 ⚠️ 消息）/ done（无游标最终 edit）。
+  3) Typewriter 节流：TYPEWRITER_MIN_INTERVAL_MS=1000（防 429），setInterval flusher 每 600ms 检查 dirty 标志。safeEditMessage() 吞掉两种预期瞬态错误："message is not modified" + 429。截断 4000 字符（带 \\.\\.\\. 省略号）防 4096 字符限制；超长部分作为后续消息发送，无内容静默丢失。
+  4) ensurePrime() create-or-fetch：先 POST /api/primes（后端会主动唤醒默认 Eidolon 绑定第一个 idle Vessel），失败则 GET /api/primes 按 telegramId 查找。TG 用户首次 /awaken 即在 EidolonOS 侧创建 Prime + 默认 Eidolon；后续 /awaken 复用现有 Prime。
+  5) Eidolon 按钮标签不转义（TG inline keyboard 按钮文本是纯文本，无 Markdown 解析）。eidolonButtonLabel() 返回带状态字形（◈ active / ◐ awakening / ◯ other）+ 名字 + 从 personaPrompt 正则提取的短标题。Echo-01 → "◈ Echo-01 — Web4.0 digital-twin philosopher"。
+  6) 健康检查服务器：最小 http.createServer 响应 /health 返回 JSON {ok, service, apiBaseUrl, activeSessions, uptime}。bot 本身用 long polling 不需要入站流量，但健康端点让运维通过 Caddy 网关 https://<host>/health?XTransformPort=3003 确认 bot 存活。
+- 关键 Telegraf v4 坑（验证时发现并修复）：bot.launch() 内部 await startPolling()，而 startPolling 返回的 Polling.loop() 含 for await 无限循环——所以 await bot.launch() 会永久阻塞，导致健康服务器和 shutdown handler 永远不执行。第一版用 await bot.launch() 在 API probe 后静默挂起。修复：先 await bot.telegram.getMe()（验证 token + 缓存 botInfo，让 launch 跳过自己的 getMe），再 bot.launch().catch(...) fire-and-forget，立即 log + 启动健康服务器 + 注册 SIGINT/SIGTERM。
+- 类型安全：bunx tsc --noEmit --strict 0 错误。ctx.match 的 regex 交集类型不在基础 Context 类型上，改用 ctx.callbackQuery.data + 'data' in cb 类型守卫（callback_query 是与 GameQuery 的辨识联合，仅前者有 data 字段）。
+- 验证：
+  * bun install → 17 packages, telegraf@4.16.3 + node-fetch@2.7.0 (transitive)
+  * timeout 10 bun run dev → 干净启动：5 行 ✓ 日志（API reachable / token valid / bot launched / health check），SIGTERM 优雅退出
+  * curl http://localhost:3003/health → {"ok":true,"service":"eidolonos-telegram-bot","apiBaseUrl":"http://localhost:3000","activeSessions":0,"uptime":6.0...}
+  * bunx tsc --noEmit --strict → 0 errors
+  * curl https://api.telegram.org/bot<token>/getMe → HTTP 200，token 有效且沙箱可达 Telegram API
+  * curl GET /api/eidolons → 200，种子 Echo-01/Specter-02 返回
+  * dev.log 无新错误，bot 进程干净退出无残留
+
+Stage Summary:
+- 产出文件（7 个，全部新建，0 修改主应用代码）：
+  * mini-services/telegram-bot/package.json
+  * mini-services/telegram-bot/index.ts (~620 行)
+  * mini-services/telegram-bot/.env (git-ignored, 含真实 token)
+  * mini-services/telegram-bot/.env.example (committed 模板)
+  * mini-services/telegram-bot/.gitignore
+  * mini-services/telegram-bot/tsconfig.json
+  * mini-services/telegram-bot/README.md
+- 关键决策：
+  * Long polling 而非 webhook：Telegraf v4 bot.launch() 默认 long polling，出站 HTTPS 到 api.telegram.org，无需入站 webhook URL，Caddy 网关后无缝工作。
+  * bot.launch() 不 await：内部 await startPolling() 含 for await 无限循环会永久阻塞；fire-and-forget + .catch() + 预先 getMe() 验证 token + 缓存 botInfo。
+  * MarkdownV2 转义中心化：escapeMdV2() 正则覆盖全部 20 特殊字符 + 反斜杠；仪式模板用预转义字面量保证设计文档精确渲染。
+  * Typewriter 节流 1 edit/sec：TYPEWRITER_MIN_INTERVAL_MS=1000，flusher 600ms 检查 dirty；safeEditMessage 吞 "not modified" + 429；4000 字符截断 + 溢出后续消息。
+  * ensurePrime create-or-fetch：POST /api/primes 失败则 GET 按 telegramId 查找；后端 POST 会主动唤醒默认 Eidolon。
+  * 健康检查服务器：/health 返回 JSON 状态，可通过 Caddy 网关 ?XTransformPort=3003 探活。
+  * 类型安全：tsc --strict 0 错误，callbackQuery 用 'data' in cb 类型守卫避开辨识联合类型问题。
+  * 严守 Task 边界：未触碰主应用 src/、prisma/、scripts/，bot 仅通过 HTTP 调用 EidolonOS API。
+- 已知局限：内存 session 重启即重置（MVP 可接受）；仅英文仪式文案（匹配设计文档 §7.3）；仅 long polling 无 webhook（单实例 MVP 足够，多实例生产需切 webhook + Redis pub/sub）。
+- 详情见 /home/z/my-project/agent-ctx/6-b-telegram-bot.md。

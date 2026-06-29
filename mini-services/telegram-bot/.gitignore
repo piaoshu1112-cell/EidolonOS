@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Secrets — NEVER commit the real bot token
+.env
+
+# Bun / TS build artifacts
+*.log
+bun.lockb
+dist/
+build/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
