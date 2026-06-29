@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDbReady()
     const body = (await req.json().catch(() => ({}))) as {
       threshold?: number
     }

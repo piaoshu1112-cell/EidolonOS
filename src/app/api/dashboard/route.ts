@@ -6,8 +6,7 @@
  * recent ledgers, eidolon status distribution, total token usage.
  */
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { ensureDbReady } from '@/lib/eidolon/db-init'
+import { db, ensureDbReady } from '@/lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

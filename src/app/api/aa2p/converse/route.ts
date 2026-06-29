@@ -16,7 +16,7 @@
  *   7. adjustReputation(+1) on success
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 import { recallMemory } from '@/lib/eidolon/rag-pipeline'
 import { buildConsciousnessPrompt } from '@/lib/eidolon/consciousness-stream'
 import {
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     agentWallet?: string
   }
   try {
+    await ensureDbReady()
     body = (await req.json().catch(() => ({}))) as typeof body
   } catch {
     body = {}

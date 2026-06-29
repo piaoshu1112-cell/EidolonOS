@@ -13,7 +13,7 @@
  *   data: {"type":"error","message":"..."}
  */
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 import { recallMemory } from '@/lib/eidolon/rag-pipeline'
 import { buildConsciousnessPrompt } from '@/lib/eidolon/consciousness-stream'
 import {
@@ -39,6 +39,8 @@ export async function POST(
   ctx: { params: Promise<{ id: string }> },
 ) {
   const { id: eidolonId } = await ctx.params
+  // Ensure DB exists BEFORE anything else (Vercel ephemeral filesystem).
+  await ensureDbReady()
   let body: { primeId?: string; message?: string; channel?: string }
   try {
     body = (await req.json().catch(() => ({}))) as typeof body

@@ -7,7 +7,7 @@
  * on subsequent converse calls via cosine similarity.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 import { engraveMemory } from '@/lib/eidolon/rag-pipeline'
 
 export const runtime = 'nodejs'
@@ -15,6 +15,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDbReady()
     const body = (await req.json().catch(() => ({}))) as {
       eidolonId?: string
       text?: string

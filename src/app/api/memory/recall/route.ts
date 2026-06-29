@@ -6,7 +6,7 @@
  * Eidolon has no memories yet.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 import { recallMemory } from '@/lib/eidolon/rag-pipeline'
 
 export const runtime = 'nodejs'
@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDbReady()
     const body = (await req.json().catch(() => ({}))) as {
       eidolonId?: string
       query?: string

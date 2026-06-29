@@ -6,13 +6,14 @@
  * returns usage breakdown; POST deploys a new Vessel.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    await ensureDbReady()
     const vessels = await db.vessel.findMany({
       orderBy: { createdAt: 'asc' },
       include: { _count: { select: { eidolons: true } } },
@@ -48,6 +49,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDbReady()
     const body = (await req.json().catch(() => ({}))) as {
       codename?: string
       modelRoute?: string

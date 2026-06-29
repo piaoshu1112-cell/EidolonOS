@@ -7,7 +7,7 @@
  * `awakening` → `active`.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -40,6 +40,7 @@ function parseJsonObject(raw: unknown): Record<string, unknown> {
 
 export async function GET() {
   try {
+    await ensureDbReady()
     const eidolons = await db.eidolon.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -57,6 +58,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDbReady()
     const body = (await req.json().catch(() => ({}))) as {
       name?: string
       personaPrompt?: string

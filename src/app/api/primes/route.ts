@@ -7,7 +7,7 @@
  * immediately.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 import { engraveMemory } from '@/lib/eidolon/rag-pipeline'
 
 export const runtime = 'nodejs'
@@ -40,6 +40,7 @@ function parsePersonality(raw: unknown): Record<string, unknown> {
 
 export async function GET() {
   try {
+    await ensureDbReady()
     const primes = await db.prime.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -56,6 +57,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDbReady()
     const body = (await req.json().catch(() => ({}))) as {
       displayName?: string
       email?: string

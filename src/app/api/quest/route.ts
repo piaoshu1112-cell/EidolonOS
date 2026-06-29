@@ -6,13 +6,14 @@
  * converse, etc. — keeps the EidolonOS economy circulating.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    await ensureDbReady()
     const quests = await db.quest.findMany({
       orderBy: { createdAt: 'desc' },
     })
@@ -25,6 +26,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDbReady()
     const body = (await req.json().catch(() => ({}))) as {
       title?: string
       description?: string
