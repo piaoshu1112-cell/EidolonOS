@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMatrixStore } from "@/lib/store/matrix-store";
+import { useLangStore } from "@/lib/store/lang-store";
+import { useProviderHeaders } from "@/hooks/use-provider-headers";
+import { t } from "@/lib/i18n/translations";
 import { Network, Shield, Send, Loader2, Coins, Globe, Cpu } from "lucide-react";
 import { toast } from "sonner";
 import { HolographicCard } from "@/components/shared/holographic-card";
@@ -41,6 +44,7 @@ type ConverseResult = {
 type SettleResult = {
   success?: boolean;
   settled?: number;
+  settledCount?: number;
   txHash?: string;
   totalValue?: number;
   error?: string;
@@ -48,10 +52,11 @@ type SettleResult = {
 };
 
 function TdpoDiagram() {
+  const lang = useLangStore((s) => s.lang);
   return (
     <div className="rounded-md border border-cyan-400/15 bg-cyan-400/[0.03] p-2.5">
       <div className="text-[10px] uppercase tracking-wider text-eidolon-cyan/80 mb-1.5 flex items-center gap-1">
-        <Shield className="size-3" /> TDPO Cognitive Firewall
+        <Shield className="size-3" /> {t(lang, "aa2p.firewall")}
       </div>
       <pre className="text-[9px] sm:text-[10px] leading-tight text-eidolon-text/70 font-mono whitespace-pre-wrap">
 {`┌─ L1 PROACTIVE ─────────────────┐
@@ -72,6 +77,8 @@ function TdpoDiagram() {
 }
 
 export function AA2PProtocol() {
+  const lang = useLangStore((s) => s.lang);
+  const providerHeaders = useProviderHeaders();
   const [message, setMessage] = useState("");
   const [agentWallet, setAgentWallet] = useState("");
   const [converseResult, setConverseResult] = useState<ConverseResult | null>(null);
@@ -106,7 +113,7 @@ export function AA2PProtocol() {
     }) => {
       const res = await fetch("/api/aa2p/converse", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...providerHeaders },
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as ConverseResult;
@@ -119,9 +126,9 @@ export function AA2PProtocol() {
       setConverseResult(data);
       // Mirror TDPO reputation rules locally (backend increments +1 on success).
       setRep((r) => Math.min(100, r + 1));
-      toast.success("AA2P invocation acknowledged", {
+      toast.success(t(lang, "aa2p.invokeAck"), {
         description: data.ledgerId
-          ? `Ledger ${data.ledgerId.slice(0, 10)}…`
+          ? `${t(lang, "aa2p.ledger")} ${data.ledgerId.slice(0, 10)}…`
           : undefined,
       });
     },
@@ -129,7 +136,7 @@ export function AA2PProtocol() {
       setConverseResult({ error: err.message });
       // Mirror TDPO penalty locally (-10 on blocked / errored invocation).
       setRep((r) => Math.max(0, r - 10));
-      toast.error("AA2P invocation blocked", { description: err.message });
+      toast.error(t(lang, "aa2p.invokeBlocked"), { description: err.message });
     },
   });
 
@@ -148,22 +155,25 @@ export function AA2PProtocol() {
     },
     onSuccess: (data) => {
       setSettleResult(data);
+      const n = data.settled ?? data.settledCount ?? 0;
       toast.success(
-        `Settled ${data.settledCount ?? 0} ledger entr${(data.settledCount ?? 0) === 1 ? "y" : "ies"}`
+        lang === "zh"
+          ? `已结算 ${n} 条账本`
+          : `Settled ${n} ledger entr${n === 1 ? "y" : "ies"}`
       );
     },
     onError: (err: Error) => {
-      toast.error("Settlement failed", { description: err.message });
+      toast.error(t(lang, "aa2p.settleFailed"), { description: err.message });
     },
   });
 
   return (
     <HolographicCard
-      title="AA2P Protocol"
+      title={t(lang, "aa2p.title")}
       subtitle={
         selectedEidolonName
-          ? `Agent-to-Agent · invoking ${selectedEidolonName}`
-          : "Agent-to-Agent · 灵魂协议"
+          ? `${t(lang, "aa2p.invoking")} ${selectedEidolonName}`
+          : t(lang, "aa2p.subtitle")
       }
       glow={1}
       className="h-full"
@@ -172,15 +182,15 @@ export function AA2PProtocol() {
       {/* Agent card */}
       <div className="rounded-md border border-cyan-400/20 bg-cyan-400/[0.03] p-2.5">
         <div className="text-[10px] uppercase tracking-wider text-eidolon-cyan/80 mb-1 flex items-center gap-1">
-          <Globe className="size-3" /> Agent Card
+          <Globe className="size-3" /> {t(lang, "aa2p.agentCard")}
           <span className="text-eidolon-text/30 ml-auto font-normal normal-case tracking-normal">
-            /.well-known/agent.json
+            {t(lang, "aa2p.agentCardPath")}
           </span>
         </div>
         {cardErr && (
           <p className="text-[11px] text-eidolon-amber">
-            ⚠ Agent card not yet published. (Task 2-c will provision{" "}
-            <code className="text-eidolon-cyan/70">/.well-known/agent.json</code>.)
+            {t(lang, "aa2p.agentCardMissing")}{" "}
+            <code className="text-eidolon-cyan/70">/.well-known/agent.json</code>.
           </p>
         )}
         {agentCard && (
@@ -203,7 +213,7 @@ export function AA2PProtocol() {
             )}
             {agentCard.walletAddress && (
               <p className="text-[10px] text-eidolon-text/40 font-mono truncate">
-                wallet: {agentCard.walletAddress}
+                {t(lang, "common.wallet")}: {agentCard.walletAddress}
               </p>
             )}
             {agentCard.capabilities && agentCard.capabilities.length > 0 && (
@@ -225,30 +235,30 @@ export function AA2PProtocol() {
       {/* External agent test */}
       <div className="rounded-md border border-cyan-400/15 bg-cyan-400/[0.03] p-2.5 space-y-2">
         <div className="text-[10px] uppercase tracking-wider text-eidolon-cyan/80 flex items-center gap-1">
-          <Send className="size-3" /> External Agent Test
+          <Send className="size-3" /> {t(lang, "aa2p.externalTest")}
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="aa2p-wallet" className="text-[10px] text-eidolon-text/60">
-            Agent Wallet Address
+            {t(lang, "aa2p.wallet")}
           </Label>
           <Input
             id="aa2p-wallet"
             value={agentWallet}
             onChange={(e) => setAgentWallet(e.target.value)}
-            placeholder="0x…  (external agent wallet)"
+            placeholder={t(lang, "aa2p.walletPlaceholder")}
             className="bg-cyan-400/5 border-cyan-400/25 text-xs h-7 font-mono"
           />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="aa2p-msg" className="text-[10px] text-eidolon-text/60">
-            Message
+            {t(lang, "aa2p.message")}
           </Label>
           <Textarea
             id="aa2p-msg"
             rows={3}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Transmit a message to the matrix via AA2P…"
+            placeholder={t(lang, "aa2p.messagePlaceholder")}
             className="bg-cyan-400/5 border-cyan-400/25 text-xs resize-y"
           />
         </div>
@@ -256,15 +266,15 @@ export function AA2PProtocol() {
           size="sm"
           onClick={() => {
             if (!selectedPrimeId || !selectedEidolonId) {
-              toast.error("Select a Prime and Eidolon first (the AA2P endpoint invokes the currently-selected Eidolon on the agent's behalf)");
+              toast.error(t(lang, "aa2p.needPrimeEidolon"));
               return;
             }
             if (!message.trim()) {
-              toast.error("Message required");
+              toast.error(t(lang, "aa2p.messageRequired"));
               return;
             }
             if (!agentWallet.trim()) {
-              toast.error("Agent wallet required");
+              toast.error(t(lang, "aa2p.walletRequired"));
               return;
             }
             converseMutation.mutate({
@@ -282,7 +292,7 @@ export function AA2PProtocol() {
           ) : (
             <Send className="size-3" />
           )}
-          Invoke via AA2P
+          {t(lang, "aa2p.invoke")}
         </Button>
 
         {converseResult && (
@@ -295,32 +305,32 @@ export function AA2PProtocol() {
               <>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] uppercase tracking-wider text-eidolon-cyan/70">
-                    Response
+                    {t(lang, "aa2p.response")}
                   </span>
                   <Badge className="text-[9px] py-0 px-1.5 bg-cyan-400/10 text-eidolon-cyan border-cyan-400/30">
-                    rep {rep}
+                    {t(lang, "aa2p.rep")} {rep}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-eidolon-text/85 leading-snug whitespace-pre-wrap">
-                  {converseResult.response ?? "(no content)"}
+                  {converseResult.response ?? t(lang, "aa2p.noContent")}
                 </p>
                 <div className="flex flex-wrap gap-2 text-[10px] text-eidolon-text/50 pt-1">
                   {converseResult.ledgerId && (
                     <span className="font-mono">
-                      ledger: {converseResult.ledgerId.slice(0, 14)}…
+                      {t(lang, "aa2p.ledger")}: {converseResult.ledgerId.slice(0, 14)}…
                     </span>
                   )}
                   {typeof converseResult.cognitiveValue === "number" && (
-                    <span>cog value: {converseResult.cognitiveValue}</span>
+                    <span>{t(lang, "aa2p.cogValue")}: {converseResult.cognitiveValue}</span>
                   )}
                   {typeof converseResult.tokensOut === "number" && (
-                    <span>tokens: {converseResult.tokensOut}</span>
+                    <span>{t(lang, "aa2p.tokens")}: {converseResult.tokensOut}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] mt-1 pt-1 border-t border-cyan-400/15">
                   <Shield className="size-2.5 text-eidolon-cyan" />
-                  <span className="text-eidolon-text/60">TDPO:</span>
-                  <span className="font-mono text-emerald-400">passed</span>
+                  <span className="text-eidolon-text/60">{t(lang, "aa2p.tdpo")}:</span>
+                  <span className="font-mono text-emerald-400">{t(lang, "aa2p.tdpoPassed")}</span>
                 </div>
               </>
             )}
@@ -331,10 +341,10 @@ export function AA2PProtocol() {
       {/* Settle pending */}
       <div className="rounded-md border border-amber-400/20 bg-amber-400/[0.03] p-2.5 space-y-2">
         <div className="text-[10px] uppercase tracking-wider text-eidolon-amber/90 flex items-center gap-1">
-          <Coins className="size-3" /> AP2 Async Settlement
+          <Coins className="size-3" /> {t(lang, "aa2p.settle")}
         </div>
         <p className="text-[10px] text-eidolon-text/50 leading-snug">
-          Batch-settle pending ledger entries on-chain via AP2 BudgetFence.
+          {t(lang, "aa2p.settleDesc")}
         </p>
         <Button
           size="sm"
@@ -348,20 +358,20 @@ export function AA2PProtocol() {
           ) : (
             <Coins className="size-3" />
           )}
-          Settle Pending
+          {t(lang, "aa2p.settleBtn")}
         </Button>
         {settleResult && (
           <div className="rounded border border-amber-400/25 bg-amber-400/5 p-2 text-[11px]">
             <div className="flex items-center justify-between">
-              <span className="text-eidolon-text/60">Settled entries:</span>
+              <span className="text-eidolon-text/60">{t(lang, "aa2p.settled")}</span>
               <span className="text-eidolon-amber font-semibold tabular-nums">
-                {settleResult.settled ?? 0}
+                {settleResult.settled ?? settleResult.settledCount ?? 0}
               </span>
             </div>
             {settleResult.txHash && (
               <div className="flex items-center gap-1 mt-1 pt-1 border-t border-amber-400/15">
                 <Cpu className="size-2.5 text-eidolon-amber" />
-                <span className="text-eidolon-text/50">txHash:</span>
+                <span className="text-eidolon-text/50">{t(lang, "aa2p.txHash")}:</span>
                 <span className="font-mono text-eidolon-amber/80 truncate">
                   {settleResult.txHash.slice(0, 24)}…
                 </span>

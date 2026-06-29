@@ -22,6 +22,7 @@ import { buildConsciousnessPrompt } from '@/lib/eidolon/consciousness-stream'
 import {
   completeFromVessel,
   countTokens,
+  resolveProviderConfig,
 } from '@/lib/eidolon/llm-router'
 import {
   tdpoGuard,
@@ -55,6 +56,10 @@ export async function POST(req: NextRequest) {
     req.headers.get('x-agent-wallet') ||
     body.agentWallet ||
     'anonymous'
+
+  // Resolve per-request LLM provider (from x-llm-* headers set by the
+  // frontend). Falls through to env / sandbox if absent.
+  const providerConfig = resolveProviderConfig(req.headers)
 
   // [1] TDPO cognitive firewall.
   const verdict = await tdpoGuard({ agentWallet, body })
@@ -151,10 +156,14 @@ export async function POST(req: NextRequest) {
     })
 
     // [4] One-shot Vessel completion.
-    const response = await completeFromVessel(promptChain, {
-      temperature: eidolon.vessel.temperature,
-      maxTokens: eidolon.vessel.maxTokens,
-    })
+    const response = await completeFromVessel(
+      promptChain,
+      {
+        temperature: eidolon.vessel.temperature,
+        maxTokens: eidolon.vessel.maxTokens,
+      },
+      providerConfig,
+    )
 
     // [5] Persist Message rows + bump Vessel quota.
     const tokensIn = countTokens(body.message)

@@ -22,6 +22,7 @@ import {
   countTokens,
   createSseLineParser,
   parseSseDataLine,
+  resolveProviderConfig,
 } from '@/lib/eidolon/llm-router'
 
 export const runtime = 'nodejs'
@@ -41,6 +42,9 @@ export async function POST(
   const { id: eidolonId } = await ctx.params
   // Ensure DB exists BEFORE anything else (Vercel ephemeral filesystem).
   await ensureDbReady()
+  // Resolve per-request LLM provider (from x-llm-* headers set by the
+  // frontend). Falls through to env / sandbox if absent.
+  const providerConfig = resolveProviderConfig(req.headers)
   let body: { primeId?: string; message?: string; channel?: string }
   try {
     body = (await req.json().catch(() => ({}))) as typeof body
@@ -148,10 +152,14 @@ export async function POST(
         })
 
         // [c] Open the Vessel stream.
-        const vesselStream = await streamFromVessel(promptChain, {
-          temperature: vessel.temperature,
-          maxTokens: vessel.maxTokens,
-        })
+        const vesselStream = await streamFromVessel(
+          promptChain,
+          {
+            temperature: vessel.temperature,
+            maxTokens: vessel.maxTokens,
+          },
+          providerConfig,
+        )
 
         let fullText = ''
         if (vesselStream) {
@@ -191,10 +199,14 @@ export async function POST(
           }
         } else {
           // Fallback path: Vessel gave no stream — aggregate one-shot.
-          fullText = await completeFromVessel(promptChain, {
-            temperature: vessel.temperature,
-            maxTokens: vessel.maxTokens,
-          })
+          fullText = await completeFromVessel(
+            promptChain,
+            {
+              temperature: vessel.temperature,
+              maxTokens: vessel.maxTokens,
+            },
+            providerConfig,
+          )
           if (fullText) emit({ type: 'token', content: fullText })
         }
 

@@ -7,6 +7,8 @@ import {
   useQuery,
 } from "@tanstack/react-query";
 import { useMatrixStore, type DashboardStats } from "@/lib/store/matrix-store";
+import { useLangStore } from "@/lib/store/lang-store";
+import { t } from "@/lib/i18n/translations";
 import { ParticleBg } from "@/components/shared/particle-bg";
 import { SystemStatus } from "@/components/eidolon/system-status";
 import { PrimePanel } from "@/components/eidolon/prime-panel";
@@ -15,9 +17,11 @@ import { HolographicChat } from "@/components/eidolon/holographic-chat";
 import { VesselPanel } from "@/components/eidolon/vessel-panel";
 import { MemoryVault } from "@/components/eidolon/memory-vault";
 import { AA2PProtocol } from "@/components/eidolon/aa2p-protocol";
+import { ProviderSettings } from "@/components/eidolon/provider-settings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function MatrixConsoleInner() {
+  const lang = useLangStore((s) => s.lang);
   const setStats = useMatrixStore((s) => s.setStats);
   const selectedEidolonId = useMatrixStore((s) => s.selectedEidolonId);
   // `chatKey` resets HolographicChat internal state whenever the selected
@@ -58,24 +62,30 @@ function MatrixConsoleInner() {
             </section>
             <aside className="min-h-0 overflow-hidden">
               <Tabs defaultValue="vessel" className="h-full flex flex-col gap-2">
-                <TabsList className="grid grid-cols-3 w-full bg-cyan-400/5 border border-cyan-400/15">
+                <TabsList className="grid grid-cols-4 w-full bg-cyan-400/5 border border-cyan-400/15">
                   <TabsTrigger
                     value="vessel"
                     className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wider"
                   >
-                    Vessel
+                    {t(lang, "tab.vessel")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="memory"
                     className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wider"
                   >
-                    Memory
+                    {t(lang, "tab.memory")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="aa2p"
                     className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wider"
                   >
-                    AA2P
+                    {t(lang, "tab.aa2p")}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="provider"
+                    className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wider"
+                  >
+                    {t(lang, "tab.provider")}
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="vessel" className="flex-1 min-h-0 overflow-hidden">
@@ -87,6 +97,9 @@ function MatrixConsoleInner() {
                 <TabsContent value="aa2p" className="flex-1 min-h-0 overflow-hidden">
                   <AA2PProtocol />
                 </TabsContent>
+                <TabsContent value="provider" className="flex-1 min-h-0 overflow-hidden">
+                  <ProviderSettings />
+                </TabsContent>
               </Tabs>
             </aside>
           </div>
@@ -97,36 +110,42 @@ function MatrixConsoleInner() {
               <HolographicChat key={chatKey} />
             </section>
             <Tabs defaultValue="prime">
-              <TabsList className="grid grid-cols-5 w-full bg-cyan-400/5 border border-cyan-400/15 h-9">
+              <TabsList className="grid grid-cols-6 w-full bg-cyan-400/5 border border-cyan-400/15 h-9">
                 <TabsTrigger
                   value="prime"
                   className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wide"
                 >
-                  Prime
+                  {t(lang, "tab.vessel") === "容器" ? "本体" : "Prime"}
                 </TabsTrigger>
                 <TabsTrigger
                   value="eidolon"
                   className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wide"
                 >
-                  Eidolon
+                  {t(lang, "tab.aa2p") === "协议" ? "真身" : "Eidolon"}
                 </TabsTrigger>
                 <TabsTrigger
                   value="vessel"
                   className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wide"
                 >
-                  Vessel
+                  {t(lang, "tab.vessel")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="memory"
                   className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wide"
                 >
-                  Memory
+                  {t(lang, "tab.memory")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="aa2p"
                   className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wide"
                 >
-                  AA2P
+                  {t(lang, "tab.aa2p")}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="provider"
+                  className="data-[state=active]:bg-cyan-400/15 data-[state=active]:text-eidolon-cyan text-[10px] uppercase tracking-wide"
+                >
+                  {t(lang, "tab.provider")}
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="prime" className="mt-2">
@@ -144,19 +163,22 @@ function MatrixConsoleInner() {
               <TabsContent value="aa2p" className="mt-2">
                 <AA2PProtocol />
               </TabsContent>
+              <TabsContent value="provider" className="mt-2">
+                <ProviderSettings />
+              </TabsContent>
             </Tabs>
           </div>
 
           {/* Dashboard error strip (non-blocking) */}
           {isError && (
             <div className="mt-3 text-[11px] text-eidolon-amber flex items-center gap-2 px-2 py-1 border border-amber-400/20 rounded bg-amber-400/5">
-              <span>⚠ Dashboard sync failed</span>
+              <span>⚠ {t(lang, "common.dashboardFailed")}</span>
               <button
                 type="button"
                 onClick={() => refetch()}
                 className="ml-auto underline hover:text-eidolon-amber/80"
               >
-                Retry
+                {t(lang, "common.retry")}
               </button>
             </div>
           )}
@@ -165,13 +187,13 @@ function MatrixConsoleInner() {
         {/* Sticky footer */}
         <footer className="mt-auto relative z-10 hologram-panel border-t border-cyan-400/25">
           <div className="px-4 py-2 flex items-center justify-center gap-3 text-[10px] tracking-wider text-eidolon-text/50">
-            <span className="text-eidolon-cyan/70">© EidolonOS</span>
+            <span className="text-eidolon-cyan/70">{t(lang, "footer.copyright")}</span>
             <span className="text-eidolon-cyan/40">·</span>
-            <span>AA2P v1.0</span>
+            <span>{t(lang, "footer.aa2p")}</span>
             <span className="text-eidolon-cyan/40">·</span>
-            <span className="text-emerald-400/80">AP2 Ready</span>
+            <span className="text-emerald-400/80">{t(lang, "footer.ap2")}</span>
             <span className="text-eidolon-cyan/40">·</span>
-            <span className="text-eidolon-violet/70">Built by 15+ Years Architect</span>
+            <span className="text-eidolon-violet/70">{t(lang, "footer.builtBy")}</span>
           </div>
         </footer>
       </div>

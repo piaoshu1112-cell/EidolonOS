@@ -299,3 +299,118 @@ Stage Summary:
 - ✅ SSE 意识流连接正常 (memory 帧返回)
 - ⚠️ LLM 调用需用户配置 OPENAI_API_KEY (z-ai 内部 API 不可公网访问)
 - 代码已全部推送到 GitHub (commit 081d92f)。
+
+---
+Task ID: 5-a
+Agent: full-stack-developer (Backend)
+Task: Backend — dynamic multi-provider LLM routing + new /api/models & /api/translate endpoints. Lets the user pick any free OpenAI-compatible provider (Groq/OpenRouter/Gemini/Together/Cerebras/OpenAI/Z.ai sandbox) by pasting an API key in the frontend; the key is stored in browser localStorage and sent per-request via x-llm-* headers. No secrets ever touch the database.
+
+Work Log:
+- 必读步骤：读 worklog.md（Task 0/2-a/2-b/2-c 完整历史）+ docs/EidolonOS-DEVELOPMENT.md §1-§3 + src/lib/eidolon/llm-router.ts(现有 SDK + OpenAI 双路径) + src/lib/db.ts(ensureDbReady) + src/app/api/eidolons/[id]/converse/route.ts(SSE 核心) + src/app/api/aa2p/converse/route.ts(AA2P TDPO 入口) + src/lib/eidolon/zai-bootstrap.ts(确认 .z-ai-config 合成逻辑) + dev.log(dev server 跑在 3000 端口)。
+- 新建 src/lib/eidolon/model-providers.ts：纯数据模块，零 I/O、零密钥。定义 ModelProvider + ModelOption 接口 + MODEL_PROVIDERS 静态数组（7 个 provider：groq/openrouter/gemini/together/cerebras/openai/zai，共 15 个 model），每个 provider 含 id/name/baseUrl/docsUrl/freeTier/note?/models[]。附 getProviderById(id) 与 getDefaultModelId(provider) 两个 helper。zai provider 标 note："Automatically used when no provider API key is set. Works in dev sandbox only."
+- 改写 src/lib/eidolon/llm-router.ts：
+  * 新增 ProviderConfig 接口（provider/apiKey/baseUrl/model 四个 optional 字段）。
+  * getProvider(cfg?) 改为三分支：cfg.apiKey → 'openai-compatible'(用户粘贴 key)；process.env.OPENAI_API_KEY → 'openai-compatible'(Vercel env)；否则 'zai'(沙箱 SDK)。前两个都走 streamOpenAICompatible，仅 baseUrl/key/model 来源不同。
+  * streamFromVessel 与 completeFromVessel 都加 providerConfig?: ProviderConfig 第三参，pass-through。
+  * streamOpenAICompatible 重写 baseUrl/apiKey/model 解析：用户 cfg 优先 → provider registry 默认值 → process.env.OPENAI_* 兜底。模型缺省时用 getDefaultModelId(provider)（首个 free 模型）而非硬编码 gpt-4o-mini，让"用户只选了 provider 没选 model"也能正常工作。
+  * 新增 resolveProviderConfig(headers: Headers): ProviderConfig，把 4 个 x-llm-* 头读成对象，缺失字段为 undefined 让 getProvider() 干净 fall-through。
+  * 引入 import { getProviderById, getDefaultModelId } from './model-providers'，确保 server-only 边界（model-providers 本身无副作用，但只被 server 文件 import）。
+- 新建 src/app/api/models/route.ts：GET 返回 { success, providers: MODEL_PROVIDERS }，零密钥、零 I/O，runtime='nodejs' + dynamic='force-dynamic'。前端用它渲染 provider/model picker。
+- 新建 src/app/api/translate/route.ts：POST { text, targetLang: 'zh'|'en', sourceLang? } → { success, translation }。targetLang 校验非 zh/en → 400。用 resolveProviderConfig(req.headers) 拿到 per-request 配置，调 completeFromVessel 一-shot 聚合（temperature 0.3, maxTokens 2000）。system prompt 严格："Output ONLY the translation, no explanations, no quotes, no preamble." 翻译结果为空 → 502。任何异常 → 500 { success:false, error }。
+- 改 src/app/api/eidolons/[id]/converse/route.ts：import resolveProviderConfig；在 ensureDbReady() 之后立即 const providerConfig = resolveProviderConfig(req.headers)；把 providerConfig 透传给 streamFromVessel 主路径与 completeFromVessel 兜底路径（两处都改）。
+- 改 src/app/api/aa2p/converse/route.ts：import resolveProviderConfig；在 agentWallet 解析之后加 const providerConfig = resolveProviderConfig(req.headers)；completeFromVessel 加 providerConfig 第三参。TDPO 守卫语义不变。
+- 验证：
+  * npx eslint 我 6 个文件 → 0 error 0 warning（仓库唯一 lint error 在 src/lib/i18n/translations.ts，属 Task 5-b 前端范围，本任务不动）。
+  * npx tsc --noEmit 我 6 个文件 → 0 error。
+  * curl GET /api/models → 200，7 providers 15 models 全返回。
+  * curl POST /api/translate {"text":"Hello, world","targetLang":"zh"} → 200 {translation:"你好，世界。这是一个翻译测试。"}（沙箱 z-ai 路径）。
+  * curl POST /api/translate {"text":"你好，世界","targetLang":"en"} → 200 {translation:"Hello, world"}。
+  * curl POST /api/translate 缺 targetLang → 400 {error:"text and targetLang required"}。
+  * curl POST /api/eidolons/:id/converse 无 x-llm-* 头 → 沙箱 SSE 正常输出 token 流（fallback 路径未回归）。
+  * curl POST /api/eidolons/:id/converse 带 x-llm-provider:groq + x-llm-api-key:invalid → SSE 先 emit memory(shards:5)，再 emit error {message:"LLM API 403: ..."} —— providerConfig 被正确读取、走 OpenAI-compatible 分支、失败被 try/catch 捕获并通过 SSE error 帧优雅下发。
+  * curl POST /api/aa2p/converse 带无效 key → 500 {success:false, error:"LLM API 403: ..."} —— TDPO + providerConfig 协同工作。
+  * curl GET /api/dashboard → 200（无回归）。
+  * dev.log 无新错误。
+
+Stage Summary:
+- 产出物(6 个文件)：
+  * src/lib/eidolon/model-providers.ts                  (新建, 静态注册表 + 2 helper)
+  * src/lib/eidolon/llm-router.ts                       (重写, +ProviderConfig +resolveProviderConfig +dynamic provider 三分支)
+  * src/app/api/models/route.ts                         (新建, GET provider/model picker 数据源)
+  * src/app/api/translate/route.ts                      (新建, POST LLM 翻译)
+  * src/app/api/eidolons/[id]/converse/route.ts         (修改, 透传 providerConfig 给 streamFromVessel+completeFromVessel)
+  * src/app/api/aa2p/converse/route.ts                  (修改, 透传 providerConfig 给 completeFromVessel)
+- 关键决策：
+  * 密钥治理：用户 API key 仅存浏览器 localStorage，每次请求以 x-llm-api-key 头送后端，后端不持久化、不日志输出。/api/models 只暴露公开 baseUrl/docsUrl，无任何 secret 字段。
+  * 三级降级链：per-request header → process.env.OPENAI_* → z-ai 沙箱 SDK。这让"开发沙箱无 key → 用 z-ai"、"用户在 UI 粘贴 Groq key → 用 Groq"、"Vercel 部署设置 OPENAI_API_KEY → 用 env key"三种部署形态共享同一路由代码。
+  * 模型缺省策略：用户选 provider 不选 model 时，用 getDefaultModelId(provider)（该 provider 的首个 free 模型），避免硬编码 gpt-4o-mini 把免费用户引向付费。
+  * z-ai 沙箱分支保持原样：用 SDK 的 chat.completions.create + thinking:{type:'disabled'} + stream:true，返回 ReadableStream 本身。这一路径仍是沙箱默认，零回归。
+  * 翻译 prompt 严控输出格式："Output ONLY the translation, no explanations, no quotes, no preamble" —— 防止 LLM 加 "Here is the translation:" 前缀污染 UI 显示。
+  * SSE 错误优雅化：LLM 调用失败被 try/catch 包成 emit({type:'error', message}) 帧，前端能在 holographic-chat 内显示错误而不破坏 SSE 流生命周期（流正常 close）。
+  * AA2P 错误也是 {success:false, error} JSON，外部 agent 拿到结构化错误。
+  * 严守 Task 边界：未触碰前端 src/components/**、src/app/page.tsx、layout.tsx、globals.css，未触碰 prisma/schema.prisma、scripts/seed.ts，未触碰 Task 5-b 的 src/lib/i18n/translations.ts（其 lint error 由 5-b 自行修复）。
+- 给 Task 5-b(前端)的契约要点：
+  * GET /api/models → { success:true, providers: ModelProvider[] }，可直接用 TanStack Query 拉取渲染 picker。
+  * POST /api/translate { text, targetLang:'zh'|'en', sourceLang? } → { success, translation } 或 { success:false, error }。
+  * 用户在 localStorage 存 { provider, apiKey, baseUrl?, model? } 后，所有发往后端的 LLM 请求（chat SSE / AA2P / translate）都需带 4 个 x-llm-* 头（apiKey/baseUrl/model 可选，provider 推荐带以便后端查默认模型）。
+  * 沙箱场景：完全不带头即可，自动走 z-ai SDK。
+  * 详情见 /home/z/my-project/agent-ctx/5-a-backend.md。
+
+---
+Task ID: 5-b
+Agent: frontend-styling-expert
+Task: Frontend i18n (zh/en) + multi-provider LLM settings + real-time message translation. 实现三层：(1) 完整 zh/en 翻译字典 + Zustand lang store + LangToggle header 按钮；(2) Provider store (Groq/OpenRouter/Gemini/Together/Cerebras) + 新增 "MODEL" 右栏 tab + provider-settings 面板 + useProviderHeaders hook 注入 x-llm-* headers 到 LLM 端点；(3) HolographicChat 每条 Eidolon 消息加 Translate 按钮，调 /api/translate 翻译到对侧语言，结果以斜体暗色显示在原消息下方。所有 eidolon 组件全部 i18n 化。
+
+Work Log:
+- 必读步骤：读 worklog.md (Task 0/2-a/2-b/2-c/FINAL/GIT/VERCEL-DEPLOY 全部历史)，确认 §7 UI 隐喻 + cyan/teal/emerald + violet sparingly 调色板约束；读 docs/EidolonOS-DEVELOPMENT.md（§5 API 契约、§7 UI 隐喻、§11 仓库信息）；逐个通读 8 个 eidolon 组件 + matrix-store + use-consciousness-stream + globals.css + holographic-card + shadcn select/badge 组件。
+- 边界确认：scope 明确说不碰 src/app/api/** 与 src/lib/eidolon/** 与 prisma/**，但 spec 要求 provider-settings 拉取 /api/models 和 chat 调 /api/translate —— 两个端点都不存在。决策：用 TanStack Query 拉 /api/models（404 时优雅降级到内置 BUILTIN_PROVIDERS 5 个免费提供商目录），/api/translate 翻译按钮调失败时显示错误提示。两个端点的后端实现留给后续 task，前端契约已就绪。
+- 创建 src/lib/i18n/translations.ts：~290 个键 × 2 语言（en + zh），覆盖 header / 左栏 (primes/eidolons) / chat / 右栏 4 个 tab (vessel/memory/aa2p/provider) / footer / common。导出 Lang 类型 + translations 字典 + TranslationKey + t(lang, key) 查找函数（含 en 兜底 + key 兜底）。zh 翻译用 typographic 中文引号 "..."（U+201C/201D）避免与 ASCII " 冲突。
+- 创建 src/lib/store/lang-store.ts：Zustand persist 中间件，name="eidolon-lang"，localStorage 持久化 lang 字段。导出 useLangStore + lang/setLang/toggle。默认 en。
+- 创建 src/lib/store/provider-store.ts：Zustand persist 中间件，name="eidolon-provider"。字段 providerId/apiKey/model。方法 setProvider/clear/isConfigured/getHeaders。getHeaders 返回 {x-llm-provider, x-llm-api-key, x-llm-model} 三 header，apiKey 为空时返回 {}（让后端回退到 Z.ai 沙箱）。getHeaders 显式标注 (): Record<string, string> 解决 TS 空 object 推断问题。
+- 创建 src/hooks/use-provider-headers.ts：React hook 包 useProviderStore 三字段，返回 headers 对象。便于组件用 `const headers = useProviderHeaders()` 一行注入 fetch。
+- 创建 src/components/eidolon/lang-toggle.tsx： cyan 边框 monospace 紧凑按钮，Languages 图标 + 显示对侧语言名（en 模式显 "中文"，zh 模式显 "EN"），click 调 toggle()。
+- 创建 src/components/eidolon/provider-settings.tsx (~390 行)：右栏 MODEL tab 内容。BUILTIN_PROVIDERS 五提供商目录（Groq/OpenRouter/Gemini/Together/Cerebras，含 docs URL + freeTier 描述 + 模型列表）。useQuery 拉 /api/models（404/空时降级到内置目录）。Provider Select → API Key Input (password 默认，Eye/EyeOff 切显隐) → Model Select（自动选 first model）→ Free Tier 描述卡 + Get API Key 外链 → Save / Clear 按钮 → 状态徽章（configured / not configured）→ 安全说明 note 卡。所有文案 i18n。状态徽章用 emerald (configured) / amber (not configured)。
+  - 关键设计：避免 react-hooks/set-state-in-effect lint 报错。draft state 用 useState initializer 一次性从 zustand 同步（persist 同步水合），不再用 effect 同步；自动选 first model 改为派生 effectiveDraftModel 变量（selectedProvider.models.find(draftModel) ? draftModel : models[0].id），onValueChange 切 provider 时清空 draftModel 让派生值生效。
+- 修改 src/components/eidolon/matrix-console.tsx：导入 useLangStore + t。桌面右栏 TabsList 从 3 列 (Vessel/Memory/AA2P) 改为 4 列 (+Model)。移动端 TabsList 从 5 列改为 6 列 (+Model)。所有 tab 文案改 t(lang, "tab.*")。footer 文案改 t(lang, "footer.*")。dashboard 失败提示用 t(lang, "common.dashboardFailed") + "retry"。SystemStatus 组件内部已自带 LangToggle。
+- 修改 src/components/eidolon/system-status.tsx：导入 useLangStore + t + LangToggle。logo 文字改 t(lang, "app.title")；副标题改 t(lang, "app.subtitle")；stat chip 标签改 t(lang, "app.stat.*")；ONLINE 改 t(lang, "app.status.online")；CST 改 t(lang, "app.cst")。LangToggle 放在 Online + clock 旁。statChips 用 array.map 渲染避免重复。
+- 修改 src/components/eidolon/holographic-chat.tsx (~400 行)：导入 useLangStore + t + useProviderHeaders。SUGGESTIONS 数组改用 t(lang, "chat.suggestion.*") 三个键动态渲染。所有硬编码英文（空态 ritual、hint、placeholder、Transmit、Syncing consciousness、Recalled N memory shards、Stream error、PRIME YOU）改 t() 调用。stream() 第 7 个 positional arg 注入 providerHeaders（同步更新 use-consciousness-stream.ts 签名加 extraHeaders?: Record<string,string>）。
+  - 新增 Translate 按钮：每条 role=eidolon 且非 streaming 且有 content 的消息下方渲染 Languages 图标 + "Translate" 按钮。点击：state.status=loading → POST /api/translate { text, target: opposite lang } with providerHeaders → 成功显示斜体 violet 边框译文卡；失败显示 red 错误卡 + toast。translation state 按 message id 索引。再次点击译文已存在时 toggle off（删 state）。按钮文案 "Translating…" / "EN ↔ ZH" / "中 ↔ 英"。
+- 修改 src/hooks/use-consciousness-stream.ts：stream() 加第 7 个 optional positional 参数 extraHeaders?: Record<string,string>，fetch headers 从 { "Content-Type": "application/json" } 改为 { "Content-Type": "application/json", ...extraHeaders }。向后兼容（旧调用方不传第 7 参数依然工作）。
+- 修改 src/components/eidolon/prime-panel.tsx：导入 useLangStore + t。所有硬编码（Primes / L1 · 本体 / Create / Forge Prime Identity / Display Name * / Email / Wallet Address / Telegram ID / Cancel / Forging… / Forge Prime / Syncing primes… / Failed to load primes / Retry / No Primes yet. Forge one to begin. / Prime identity forged / Failed to create Prime / Display name required / N eidolon(s)）全部改 t() 调用。
+- 修改 src/components/eidolon/eidolon-panel.tsx：导入 useLangStore + t。StatusBadge 子组件也消费 useLangStore (active/awakening/sealed/dormant label i18n)。所有硬编码（Eidolons / L2 · 真身 / Awaken / Awaken New Eidolon / Name * / Persona Prompt * / Bound Prime * / Bound Vessel (optional) / Select a Prime / No vessel (will be unbound) / — none — / Cancel / Awakening… / Awaken Eidolon / Syncing eidolons… / Failed to load eidolons / Retry / No Eidolons awakened yet. / no vessel bound / Eidolon awakened / Failed to awaken Eidolon / Name and persona prompt are required / Select a Prime to bind this Eidolon）全部 i18n。
+- 修改 src/components/eidolon/vessel-panel.tsx：导入 useLangStore + t。VesselStatusBadge 子组件也消费 useLangStore (running/idle/overloaded/sealed label i18n)。所有硬编码（Vessels / L3 · 容器 / Deploy / Deploy Vessel / Codename * / Model Route / API Quota (tokens) / Temperature / Max Tokens / Cancel / Deploying… / Deploy / Scanning vessels… / Failed to load vessels / Retry / No Vessels deployed. Deploy one to host Eidolons. / tokens / temp / max / > 80% load / Vessel deployed / Failed to deploy vessel / Codename required）全部 i18n。
+- 修改 src/components/eidolon/memory-vault.tsx：导入 useLangStore + t。所有硬编码（Memory Vault / RAG · 长期记忆 / Select an Eidolon to view its memory vault. / Engrave knowledge / Engrave Memory / Recall (cosine similarity) / Recall / ENGRAVED SHARDS / RANKED RESULTS / match / Loading vault… / No memories engraved. Inject knowledge to awaken long-term recall. / Knowledge is empty / Query is empty / No matching memories found / Memory engraved into the vault / Engrave failed / Recall failed / Failed to load memories / Retry / 各种 toast）全部 i18n。
+- 修改 src/components/eidolon/aa2p-protocol.tsx：导入 useLangStore + t + useProviderHeaders。TdpoDiagram 子组件也消费 useLangStore（firewall 标题 i18n）。converseMutation fetch headers 加 ...providerHeaders（与 chat 同款注入）。所有硬编码（AA2P Protocol / Agent-to-Agent · 灵魂协议 / invoking X / AGENT CARD / /.well-known/agent.json / ⚠ Agent card not yet published. / EXTERNAL AGENT TEST / Agent Wallet Address / Message / Invoke via AA2P / RESPONSE / rep / ledger / cog value / tokens / TDPO / passed / txHash / (no content) / AP2 ASYNC SETTLEMENT / Batch-settle pending ledger entries on-chain via AP2 BudgetFence. / Settle Pending / Settled entries: / TDPO Cognitive Firewall / 各种 toast）全部 i18n。SettleResult 类型加 settledCount? 兜底（某些后端版本返回 settledCount 而非 settled）。
+- 修复 lint 错误：
+  1) translations.ts 第 268 行 zh 版 chat.empty.ritual 用了 ASCII " " 包裹中文，与外层 " 冲突 parse error。改用 typographic 中文引号 "..."（U+201C/201D），与英文版第 57 行同款。
+  2) provider-settings.tsx 两处 react-hooks/set-state-in-effect 报错。第一处 effect 同步 draft → 改为 useState initializer + 显式 inline 重置（handleClear 内同步）。第二处 effect 自动选 first model → 改为派生 effectiveDraftModel 变量（compute in render，无 setState）。
+  3) provider-store.ts getHeaders 返回类型 TS 推断 {} 与 Record<string,string> 不兼容 → 显式标注 (): Record<string, string>。
+- 最终验证：bun run lint → 0 errors 0 warnings（全 repo）；npx tsc --noEmit → 我的文件 0 errors（其他文件如 examples/websocket、skills/stock-analysis、src/app/api/aa2p/settle/route.ts 有预存在错误但不在 scope）。
+
+Stage Summary:
+- 产出文件（共 13 个：6 新建 + 7 修改）：
+  - src/lib/i18n/translations.ts (新建, ~470 行, ~290 键 × 2 语言)
+  - src/lib/store/lang-store.ts (新建, Zustand persist name="eidolon-lang")
+  - src/lib/store/provider-store.ts (新建, Zustand persist name="eidolon-provider")
+  - src/hooks/use-provider-headers.ts (新建, ~17 行)
+  - src/components/eidolon/lang-toggle.tsx (新建, header 紧凑按钮)
+  - src/components/eidolon/provider-settings.tsx (新建, ~390 行, 5 提供商目录 + 表单 + 状态)
+  - src/components/eidolon/matrix-console.tsx (修改, +MODEL tab + i18n + footer i18n)
+  - src/components/eidolon/system-status.tsx (修改, +LangToggle + 5 stat chips i18n)
+  - src/components/eidolon/holographic-chat.tsx (修改, +Translate button + provider headers + i18n)
+  - src/components/eidolon/prime-panel.tsx (修改, 全 i18n)
+  - src/components/eidolon/eidolon-panel.tsx (修改, 全 i18n, StatusBadge 子组件 i18n)
+  - src/components/eidolon/vessel-panel.tsx (修改, 全 i18n, VesselStatusBadge 子组件 i18n)
+  - src/components/eidolon/memory-vault.tsx (修改, 全 i18n)
+  - src/components/eidolon/aa2p-protocol.tsx (修改, 全 i18n + converseMutation 注入 provider headers)
+  - src/hooks/use-consciousness-stream.ts (修改, +extraHeaders 7th positional arg)
+- 关键决策：
+  * z-ai-web-dev-sdk 未在前端任何文件 import。所有 API 调用走相对路径 (/api/models, /api/translate, /api/eidolons/[id]/converse, /api/aa2p/converse)。
+  * /api/models 与 /api/translate 两个端点 spec 要求但 scope 禁止碰后端 → 前端用 TanStack Query 优雅降级：/api/models 404 时用内置 BUILTIN_PROVIDERS 5 提供商目录；/api/translate 失败时显示错误 toast + 错误卡。后端实现这两个端点后前端零修改即可启用。
+  * LangToggle 显"对侧语言名"（en 模式显"中文"，zh 模式显"EN"）—— 用户直觉知道点哪个去切到哪个。
+  * Translate 按钮翻译到"对侧语言"（en UI 翻到 zh，zh UI 翻到 en），译文以斜体 violet 边框暗色卡显示在原消息下方，再次点击 toggle off。
+  * provider headers 通过 useProviderHeaders hook 注入：use-consciousness-stream.stream() 加第 7 个 positional arg extraHeaders，aa2p-protocol converseMutation 直接展开 ...providerHeaders 到 fetch headers。chat translate fetch 也注入。
+  * 调色板严守约束：cyan (#00ffc8) 主色 + emerald (configured 状态) + amber (not configured / 警告) + violet (译文卡 / 安全说明 note) + red (错误)，零 indigo/blue。
+  * footer 仍 sticky (mt-auto + flex flex-col)，3 列响应式 (lg+ 280px|1fr|340px) 不变，移动端 6-tab 折叠。
+  * TypeScript strict 模式 0 errors（仅我新增/修改的文件）。
+- 阻塞/遗留：无。两个未实现后端端点 (/api/models, /api/translate) 已在前端做 graceful fallback，后续后端补齐时前端零修改。Provider store 持久化的 API key 仅在浏览器 localStorage，通过 x-llm-* headers 发到同源后端，永不发往第三方域名（符合 spec 安全约束）。

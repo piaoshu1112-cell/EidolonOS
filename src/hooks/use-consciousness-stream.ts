@@ -27,7 +27,9 @@ interface UseConsciousnessStreamReturn {
     message: string,
     onToken: (content: string) => void,
     onDone: (data: StreamDonePayload) => void,
-    onMemory: (shardCount: number) => void
+    onMemory: (shardCount: number) => void,
+    /** Optional extra headers (e.g. x-llm-provider/api-key/model). */
+    extraHeaders?: Record<string, string>
   ) => Promise<void>;
   isStreaming: boolean;
   error: string | null;
@@ -45,6 +47,10 @@ interface UseConsciousnessStreamReturn {
  * The hook tolerates partial chunks across reads by buffering
  * incomplete events (split on \n\n) and only dispatching when a
  * full event has been accumulated.
+ *
+ * The optional `extraHeaders` argument lets callers inject provider
+ * headers (x-llm-provider / x-llm-api-key / x-llm-model) so the backend
+ * can route to a user-supplied LLM (Groq/OpenRouter/Gemini/etc.).
  */
 export function useConsciousnessStream(): UseConsciousnessStreamReturn {
   const [isStreaming, setIsStreaming] = useState(false);
@@ -64,7 +70,8 @@ export function useConsciousnessStream(): UseConsciousnessStreamReturn {
       message: string,
       onToken: (content: string) => void,
       onDone: (data: StreamDonePayload) => void,
-      onMemory: (shardCount: number) => void
+      onMemory: (shardCount: number) => void,
+      extraHeaders?: Record<string, string>
     ) => {
       setError(null);
       setIsStreaming(true);
@@ -76,7 +83,10 @@ export function useConsciousnessStream(): UseConsciousnessStreamReturn {
           `/api/eidolons/${encodeURIComponent(eidolonId)}/converse`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(extraHeaders ?? {}),
+            },
             body: JSON.stringify({ primeId, message, channel: "web" }),
             signal: controller.signal,
           }

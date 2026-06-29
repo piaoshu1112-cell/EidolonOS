@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { Brain, Database, Server, Users, Clock, Zap } from "lucide-react";
 import { useMatrixStore } from "@/lib/store/matrix-store";
+import { useLangStore } from "@/lib/store/lang-store";
+import { t, type TranslationKey } from "@/lib/i18n/translations";
+import { LangToggle } from "@/components/eidolon/lang-toggle";
 import { cn } from "@/lib/utils";
 
 function StatChip({
@@ -41,9 +44,11 @@ function StatChip({
 /**
  * SystemStatus — top header strip.
  * Renders the EIDOLON MATRIX logo (cyan glow), system ONLINE pulse,
- * live counts, total tokens used, and a live Asia/Shanghai clock.
+ * live counts, total tokens used, a live Asia/Shanghai clock and a
+ * zh/en language toggle.
  */
 export function SystemStatus() {
+  const lang = useLangStore((s) => s.lang);
   const stats = useMatrixStore((s) => s.stats);
   const [clock, setClock] = useState("--:--:--");
 
@@ -65,6 +70,14 @@ export function SystemStatus() {
     return () => clearInterval(id);
   }, []);
 
+  const statChips: { icon: typeof Users; label: string; value: number; accent?: "cyan" | "violet" | "amber" }[] = [
+    { icon: Users, label: t(lang, "app.stat.prime"), value: stats?.counts.primes ?? 0 },
+    { icon: Brain, label: t(lang, "app.stat.eidolon"), value: stats?.counts.eidolons ?? 0 },
+    { icon: Server, label: t(lang, "app.stat.vessel"), value: stats?.counts.vessels ?? 0 },
+    { icon: Database, label: t(lang, "app.stat.shards"), value: stats?.counts.memoryShards ?? 0, accent: "violet" },
+    { icon: Zap, label: t(lang, "app.stat.tokens"), value: stats?.totalTokensUsed ?? 0, accent: "amber" },
+  ];
+
   return (
     <header className="relative z-10 hologram-panel border-b border-cyan-400/25 px-3 sm:px-5 py-2.5 flex items-center justify-between gap-3 flex-wrap">
       {/* Logo */}
@@ -78,44 +91,38 @@ export function SystemStatus() {
         </div>
         <div className="min-w-0">
           <h1 className="text-sm sm:text-base font-bold tracking-[0.2em] text-eidolon-cyan eidolon-text-glow leading-none truncate">
-            EIDOLON MATRIX
+            {t(lang, "app.title")}
           </h1>
           <p className="text-[10px] tracking-widest text-eidolon-text/40 mt-0.5">
-            v1.0 · 数字真身矩阵
+            {t(lang, "app.subtitle")}
           </p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-        <StatChip icon={Users} label="Prime" value={stats?.counts.primes ?? 0} />
-        <StatChip icon={Brain} label="Eidolon" value={stats?.counts.eidolons ?? 0} />
-        <StatChip icon={Server} label="Vessel" value={stats?.counts.vessels ?? 0} />
-        <StatChip
-          icon={Database}
-          label="Shards"
-          value={stats?.counts.memoryShards ?? 0}
-          accent="violet"
-        />
-        <StatChip
-          icon={Zap}
-          label="Tokens"
-          value={(stats?.totalTokensUsed ?? 0).toLocaleString()}
-          accent="amber"
-        />
+        {statChips.map((chip, i) => (
+          <StatChip
+            key={(chip.label as TranslationKey) + i}
+            icon={chip.icon}
+            label={chip.label}
+            value={chip.value.toLocaleString()}
+            accent={chip.accent}
+          />
+        ))}
       </div>
 
-      {/* Online + clock */}
-      <div className="flex items-center gap-3">
+      {/* Online + clock + lang */}
+      <div className="flex items-center gap-2 sm:gap-3">
         <div
           className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider"
-          aria-label="System status: online"
+          aria-label={`System status: ${t(lang, "app.status.online")}`}
         >
           <span className="relative flex size-2">
             <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
             <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
           </span>
-          <span className="text-emerald-400 font-semibold">ONLINE</span>
+          <span className="text-emerald-400 font-semibold">{t(lang, "app.status.online")}</span>
         </div>
         <div
           className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-cyan-400/5 border border-cyan-400/15 tabular-nums"
@@ -123,8 +130,9 @@ export function SystemStatus() {
         >
           <Clock className="size-3.5 text-eidolon-cyan" aria-hidden />
           <span className="text-xs text-eidolon-cyan font-medium">{clock}</span>
-          <span className="text-[9px] text-eidolon-text/40 hidden sm:inline">CST</span>
+          <span className="text-[9px] text-eidolon-text/40 hidden sm:inline">{t(lang, "app.cst")}</span>
         </div>
+        <LangToggle />
       </div>
     </header>
   );

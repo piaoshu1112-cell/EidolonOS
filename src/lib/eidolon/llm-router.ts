@@ -8,15 +8,22 @@
  * string for one-shot callers (AP2 settlement receipts, AA2P external
  * agents, fallback paths).
  *
- * DUAL PROVIDER STRATEGY:
- * - In Z.ai sandbox: uses z-ai-web-dev-sdk (reads .z-ai-config)
- * - On Vercel/external: uses OpenAI-compatible API via env vars
- *   (OPENAI_API_KEY + OPENAI_BASE_URL, or any compatible endpoint)
+ * TRIAGE PROVIDER STRATEGY (in priority order):
+ * 1. Per-request `providerConfig` (sent from the browser via x-llm-*
+ *    headers — API key stored in user's localStorage). OpenAI-compatible
+ *    path is used with the supplied key + resolved baseUrl/model.
+ * 2. Server env `OPENAI_API_KEY` (Vercel deployment). OpenAI-compatible
+ *    path with OPENAI_BASE_URL / OPENAI_MODEL overrides.
+ * 3. Otherwise: z-ai-web-dev-sdk sandbox path (Z.ai dev sandbox).
  *
  * ⚠️ Server-only. Never import this from a Client Component.
  */
 import ZAI from 'z-ai-web-dev-sdk'
 import './zai-bootstrap' // side-effect: synthesizes .z-ai-config from env vars
+import {
+  getProviderById,
+  getDefaultModelId,
+} from './model-providers'
 
 export interface VesselMessage {
   role: 'system' | 'user' | 'assistant'
@@ -29,14 +36,40 @@ export interface VesselCallOpts {
 }
 
 /**
- * Detect which LLM provider to use.
- * - 'zai' if .z-ai-config exists (Z.ai sandbox) OR ZAI_* env vars set
- * - 'openai' if OPENAI_API_KEY is set (Vercel/external)
+ * Per-request provider configuration. Populated from x-llm-* HTTP
+ * headers (set by the frontend from localStorage). All fields are
+ * optional — when unset, the router falls back to env / sandbox.
  */
-function getProvider(): 'zai' | 'openai' {
-  // Explicit OpenAI config takes priority on Vercel
-  if (process.env.OPENAI_API_KEY) return 'openai'
-  // Otherwise try z-ai (sandbox or ZAI_* env vars)
+export interface ProviderConfig {
+  /** Provider id (matches MODEL_PROVIDERS[].id). */
+  provider?: string
+  /** API key for the chosen provider. */
+  apiKey?: string
+  /** Override the provider's default base URL. */
+  baseUrl?: string
+  /** Override the provider's default model id. */
+  model?: string
+}
+
+/**
+ * Detect which LLM provider to use, given a per-request config.
+ *
+ * Resolution order:
+ *   1. providerConfig.apiKey  → 'openai-compatible' (user-supplied)
+ *   2. process.env.OPENAI_API_KEY → 'openai-compatible' (Vercel env)
+ *   3. otherwise → 'zai' (sandbox SDK path)
+ *
+ * The first two both go through streamOpenAICompatible(); they only
+ * differ in where baseUrl/apiKey/model are sourced from.
+ */
+function getProvider(
+  cfg?: ProviderConfig,
+): 'zai' | 'openai-compatible' {
+  // Per-request API key wins (user pasted one in the frontend).
+  if (cfg?.apiKey) return 'openai-compatible'
+  // Vercel/external OpenAI-compatible env vars.
+  if (process.env.OPENAI_API_KEY) return 'openai-compatible'
+  // Z.ai dev sandbox.
   return 'zai'
 }
 
@@ -63,11 +96,12 @@ async function getZAI(): Promise<ZAIClient> {
 export async function streamFromVessel(
   messages: VesselMessage[],
   opts?: VesselCallOpts,
+  providerConfig?: ProviderConfig,
 ): Promise<ReadableStream<Uint8Array> | null> {
-  const provider = getProvider()
+  const provider = getProvider(providerConfig)
 
-  if (provider === 'openai') {
-    return streamOpenAICompatible(messages, opts)
+  if (provider === 'openai-compatible') {
+    return streamOpenAICompatible(messages, opts, providerConfig)
   }
 
   // Z.ai sandbox path
@@ -90,16 +124,44 @@ export async function streamFromVessel(
 }
 
 /**
- * OpenAI-compatible streaming (works with OpenAI, Azure OpenAI, Together,
- * Groq, OpenRouter, z.ai public API, etc.)
+ * OpenAI-compatible streaming. Works with OpenAI, Azure OpenAI, Together,
+ * Groq, OpenRouter, Gemini's OpenAI shim, Cerebras, z.ai public API, etc.
+ *
+ * Endpoint config resolution (highest priority first):
+ *   - explicit providerConfig override (apiKey/baseUrl/model)
+ *   - server env OPENAI_* vars
  */
 async function streamOpenAICompatible(
   messages: VesselMessage[],
   opts?: VesselCallOpts,
+  cfg?: ProviderConfig,
 ): Promise<ReadableStream<Uint8Array> | null> {
-  const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
-  const apiKey = process.env.OPENAI_API_KEY!
-  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+  // Resolve baseUrl
+  let baseUrl: string
+  let apiKey: string
+  let model: string
+
+  if (cfg?.apiKey) {
+    // Per-request config from x-llm-* headers.
+    const provider = cfg.provider ? getProviderById(cfg.provider) : undefined
+    baseUrl =
+      cfg.baseUrl ||
+      provider?.baseUrl ||
+      process.env.OPENAI_BASE_URL ||
+      'https://api.openai.com/v1'
+    apiKey = cfg.apiKey
+    // Model: explicit override → provider's default free model → env default.
+    model =
+      cfg.model ||
+      (provider ? getDefaultModelId(provider) : '') ||
+      process.env.OPENAI_MODEL ||
+      'gpt-4o-mini'
+  } else {
+    // Env-based (Vercel) path.
+    baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
+    apiKey = process.env.OPENAI_API_KEY!
+    model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+  }
 
   const body: Record<string, unknown> = {
     model,
@@ -185,14 +247,16 @@ export function parseSseDataLine(line: string): string | null {
 
 /**
  * Non-streaming fallback: aggregates a streamed completion into a
- * single string. Used by AA2P (one-shot agents) and as a safety net
- * for the consciousness stream when `streamFromVessel` returns null.
+ * single string. Used by AA2P (one-shot agents), the /api/translate
+ * endpoint, and as a safety net for the consciousness stream when
+ * `streamFromVessel` returns null.
  */
 export async function completeFromVessel(
   messages: VesselMessage[],
   opts?: VesselCallOpts,
+  providerConfig?: ProviderConfig,
 ): Promise<string> {
-  const stream = await streamFromVessel(messages, opts)
+  const stream = await streamFromVessel(messages, opts, providerConfig)
   if (!stream) {
     // The SDK failed to produce a stream — there is no non-stream
     // surface in this SDK variant, so we surface an empty reply.
@@ -233,4 +297,25 @@ export async function completeFromVessel(
  */
 export function countTokens(text: string): number {
   return Math.ceil(text.length / 4)
+}
+
+/**
+ * Extract ProviderConfig from incoming HTTP request headers.
+ *
+ * Frontend contract (all headers optional, all lowercase per HTTP/1.1):
+ *   x-llm-provider:  groq|openrouter|gemini|together|cerebras|openai|zai
+ *   x-llm-api-key:   <key>
+ *   x-llm-base-url:  <url>   (optional override)
+ *   x-llm-model:     <model id>  (optional override)
+ *
+ * Returns an object with `undefined` for any missing header so the
+ * downstream `getProvider()` can cleanly fall through to env / sandbox.
+ */
+export function resolveProviderConfig(headers: Headers): ProviderConfig {
+  return {
+    provider: headers.get('x-llm-provider') || undefined,
+    apiKey: headers.get('x-llm-api-key') || undefined,
+    baseUrl: headers.get('x-llm-base-url') || undefined,
+    model: headers.get('x-llm-model') || undefined,
+  }
 }

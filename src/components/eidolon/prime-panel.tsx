@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, User, ShieldCheck, AlertTriangle, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { useMatrixStore, type Prime } from "@/lib/store/matrix-store";
+import { useLangStore } from "@/lib/store/lang-store";
+import { t } from "@/lib/i18n/translations";
 import { HolographicCard } from "@/components/shared/holographic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +46,7 @@ function ReputationBadge({ rep }: { rep: number }) {
 }
 
 export function PrimePanel() {
+  const lang = useLangStore((s) => s.lang);
   const qc = useQueryClient();
   const primes = useMatrixStore((s) => s.primes);
   const setPrimes = useMatrixStore((s) => s.setPrimes);
@@ -96,17 +99,17 @@ export function PrimePanel() {
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       setOpen(false);
       setForm({ displayName: "", email: "", walletAddress: "", telegramId: "" });
-      toast.success("Prime identity forged");
+      toast.success(t(lang, "panel.primes.forged"));
     },
     onError: (err: Error) => {
-      toast.error("Failed to create Prime", { description: err.message });
+      toast.error(t(lang, "panel.primes.forgeFailed"), { description: err.message });
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.displayName.trim()) {
-      toast.error("Display name required");
+      toast.error(t(lang, "panel.primes.nameRequired"));
       return;
     }
     createMutation.mutate({
@@ -119,8 +122,8 @@ export function PrimePanel() {
 
   return (
     <HolographicCard
-      title="Primes"
-      subtitle="L1 · 本体 / Source"
+      title={t(lang, "panel.primes.title")}
+      subtitle={t(lang, "panel.primes.subtitle")}
       glow={1}
       actions={
         <Dialog open={open} onOpenChange={setOpen}>
@@ -129,24 +132,24 @@ export function PrimePanel() {
               size="sm"
               variant="outline"
               className="h-7 px-2 text-[10px] border-cyan-400/40 text-eidolon-cyan hover:bg-cyan-400/10 hover:text-eidolon-cyan"
-              aria-label="Create new Prime identity"
+              aria-label={t(lang, "panel.primes.createTitle")}
             >
-              <Plus className="size-3" /> Create
+              <Plus className="size-3" /> {t(lang, "panel.primes.create")}
             </Button>
           </DialogTrigger>
           <DialogContent className="hologram-panel-strong border-cyan-400/40">
             <DialogHeader>
               <DialogTitle className="text-eidolon-cyan eidolon-text-glow">
-                Forge Prime Identity
+                {t(lang, "panel.primes.createTitle")}
               </DialogTitle>
               <DialogDescription className="text-eidolon-text/60">
-                Create a new L1 Prime — your real-world identity bound to the matrix.
+                {t(lang, "panel.primes.createDesc")}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="prime-displayName" className="text-eidolon-cyan/80 text-xs">
-                  Display Name *
+                  {t(lang, "common.displayName")} *
                 </Label>
                 <Input
                   id="prime-displayName"
@@ -159,7 +162,7 @@ export function PrimePanel() {
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="prime-email" className="text-eidolon-cyan/80 text-xs">
-                  Email
+                  {t(lang, "common.email")}
                 </Label>
                 <Input
                   id="prime-email"
@@ -172,7 +175,7 @@ export function PrimePanel() {
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="prime-wallet" className="text-eidolon-cyan/80 text-xs">
-                  Wallet Address
+                  {t(lang, "common.wallet")}
                 </Label>
                 <Input
                   id="prime-wallet"
@@ -184,7 +187,7 @@ export function PrimePanel() {
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="prime-tg" className="text-eidolon-cyan/80 text-xs">
-                  Telegram ID
+                  {t(lang, "common.telegramId")}
                 </Label>
                 <Input
                   id="prime-tg"
@@ -201,14 +204,14 @@ export function PrimePanel() {
                   onClick={() => setOpen(false)}
                   className="text-eidolon-text/60"
                 >
-                  Cancel
+                  {t(lang, "common.cancel")}
                 </Button>
                 <Button
                   type="submit"
                   disabled={createMutation.isPending}
                   className="bg-eidolon-cyan text-eidolon-bg hover:bg-eidolon-cyan/90 font-semibold"
                 >
-                  {createMutation.isPending ? "Forging…" : "Forge Prime"}
+                  {createMutation.isPending ? t(lang, "panel.primes.forging") : t(lang, "panel.primes.forge")}
                 </Button>
               </DialogFooter>
             </form>
@@ -220,25 +223,25 @@ export function PrimePanel() {
     >
       {isLoading && primes.length === 0 && (
         <div className="text-xs text-eidolon-cyan/60 animate-pulse px-2 py-3">
-          Syncing primes…
+          {t(lang, "panel.primes.loading")}
         </div>
       )}
       {isError && (
         <div className="text-xs text-eidolon-amber px-2 py-2 flex items-center justify-between gap-2">
-          <span>Failed to load primes</span>
+          <span>{t(lang, "panel.primes.loadFailed")}</span>
           <Button
             size="sm"
             variant="ghost"
             className="h-6 px-2 text-eidolon-amber"
             onClick={() => refetch()}
           >
-            Retry
+            {t(lang, "common.retry")}
           </Button>
         </div>
       )}
       {!isLoading && !isError && primes.length === 0 && (
         <div className="text-xs text-eidolon-text/40 px-2 py-3 text-center">
-          No Primes yet. Forge one to begin.
+          {t(lang, "panel.primes.empty")}
         </div>
       )}
       {primes.map((p) => {
@@ -278,7 +281,7 @@ export function PrimePanel() {
               <ReputationBadge rep={p.reputation} />
             </div>
             <div className="mt-1 flex items-center gap-2 text-[10px] text-eidolon-text/40">
-              <span>{boundCount} eidolon{boundCount === 1 ? "" : "s"}</span>
+              <span>{boundCount} {boundCount === 1 ? t(lang, "panel.primes.bound") : t(lang, "panel.primes.boundPlural")}</span>
               {p.walletAddress && (
                 <span className="truncate font-mono">
                   · {p.walletAddress.slice(0, 6)}…{p.walletAddress.slice(-4)}

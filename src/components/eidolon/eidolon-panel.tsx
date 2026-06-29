@@ -9,6 +9,8 @@ import {
   type Eidolon,
   type EidolonStatus,
 } from "@/lib/store/matrix-store";
+import { useLangStore } from "@/lib/store/lang-store";
+import { t } from "@/lib/i18n/translations";
 import { HolographicCard } from "@/components/shared/holographic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,23 +36,24 @@ import {
 import { cn } from "@/lib/utils";
 
 function StatusBadge({ status }: { status: EidolonStatus }) {
+  const lang = useLangStore((s) => s.lang);
   switch (status) {
     case "active":
       return (
         <Badge className="bg-cyan-400/15 text-eidolon-cyan border-cyan-400/40 hover:bg-cyan-400/20">
-          <Zap className="size-3" /> active
+          <Zap className="size-3" /> {t(lang, "vessel.running")}
         </Badge>
       );
     case "awakening":
       return (
         <Badge className="bg-amber-400/15 text-eidolon-amber border-amber-400/40 hover:bg-amber-400/20 animate-pulse">
-          <Sparkles className="size-3" /> awakening
+          <Sparkles className="size-3" /> {t(lang, "panel.eidolons.awakening")}
         </Badge>
       );
     case "sealed":
       return (
         <Badge className="bg-red-500/15 text-red-400 border-red-500/40 hover:bg-red-500/20">
-          <Lock className="size-3" /> sealed
+          <Lock className="size-3" /> {t(lang, "vessel.sealed")}
         </Badge>
       );
     case "dormant":
@@ -64,6 +67,7 @@ function StatusBadge({ status }: { status: EidolonStatus }) {
 }
 
 export function EidolonPanel() {
+  const lang = useLangStore((s) => s.lang);
   const qc = useQueryClient();
   const eidolons = useMatrixStore((s) => s.eidolons);
   const setEidolons = useMatrixStore((s) => s.setEidolons);
@@ -125,21 +129,21 @@ export function EidolonPanel() {
       setOpen(false);
       setForm({ name: "", personaPrompt: "", primeId: "", vesselId: "__none__" });
       setEidolon(created.id);
-      toast.success(`Eidolon "${created.name}" awakened`);
+      toast.success(`${t(lang, "panel.eidolons.awakened")}: ${created.name}`);
     },
     onError: (err: Error) => {
-      toast.error("Failed to awaken Eidolon", { description: err.message });
+      toast.error(t(lang, "panel.eidolons.awakenFailed"), { description: err.message });
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.personaPrompt.trim()) {
-      toast.error("Name and persona prompt are required");
+      toast.error(t(lang, "panel.eidolons.namePersonaRequired"));
       return;
     }
     if (!form.primeId) {
-      toast.error("Select a Prime to bind this Eidolon");
+      toast.error(t(lang, "panel.eidolons.primeRequired"));
       return;
     }
     createMutation.mutate({
@@ -152,8 +156,8 @@ export function EidolonPanel() {
 
   return (
     <HolographicCard
-      title="Eidolons"
-      subtitle="L2 · 真身 / Shadow"
+      title={t(lang, "panel.eidolons.title")}
+      subtitle={t(lang, "panel.eidolons.subtitle")}
       glow={1}
       actions={
         <Dialog open={open} onOpenChange={setOpen}>
@@ -162,24 +166,24 @@ export function EidolonPanel() {
               size="sm"
               variant="outline"
               className="h-7 px-2 text-[10px] border-cyan-400/40 text-eidolon-cyan hover:bg-cyan-400/10 hover:text-eidolon-cyan"
-              aria-label="Awaken a new Eidolon"
+              aria-label={t(lang, "panel.eidolons.awakenTitle")}
             >
-              <Sparkles className="size-3" /> Awaken
+              <Sparkles className="size-3" /> {t(lang, "panel.eidolons.awaken")}
             </Button>
           </DialogTrigger>
           <DialogContent className="hologram-panel-strong border-cyan-400/40 max-h-[90vh] overflow-y-auto scrollbar-cyan">
             <DialogHeader>
               <DialogTitle className="text-eidolon-cyan eidolon-text-glow">
-                Awaken New Eidolon
+                {t(lang, "panel.eidolons.awakenTitle")}
               </DialogTitle>
               <DialogDescription className="text-eidolon-text/60">
-                Inject persona and bind a Vessel to bring a digital twin to life.
+                {t(lang, "panel.eidolons.awakenDesc")}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="eidolon-name" className="text-eidolon-cyan/80 text-xs">
-                  Name *
+                  {t(lang, "common.name")} *
                 </Label>
                 <Input
                   id="eidolon-name"
@@ -192,7 +196,7 @@ export function EidolonPanel() {
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="eidolon-persona" className="text-eidolon-cyan/80 text-xs">
-                  Persona Prompt *
+                  {t(lang, "common.persona")} *
                 </Label>
                 <Textarea
                   id="eidolon-persona"
@@ -208,19 +212,19 @@ export function EidolonPanel() {
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="eidolon-prime" className="text-eidolon-cyan/80 text-xs">
-                  Bound Prime *
+                  {t(lang, "common.boundPrime")} *
                 </Label>
                 <Select
                   value={form.primeId}
                   onValueChange={(v) => setForm({ ...form, primeId: v })}
                 >
                   <SelectTrigger id="eidolon-prime" className="bg-cyan-400/5 border-cyan-400/25">
-                    <SelectValue placeholder="Select a Prime" />
+                    <SelectValue placeholder={t(lang, "common.select")} />
                   </SelectTrigger>
                   <SelectContent className="hologram-panel-strong border-cyan-400/40">
                     {primes.length === 0 && (
                       <div className="px-2 py-1.5 text-xs text-eidolon-text/40">
-                        No Primes — forge one first
+                        {t(lang, "panel.primes.empty")}
                       </div>
                     )}
                     {primes.map((p) => (
@@ -233,17 +237,17 @@ export function EidolonPanel() {
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="eidolon-vessel" className="text-eidolon-cyan/80 text-xs">
-                  Bound Vessel (optional)
+                  {t(lang, "common.optional")}
                 </Label>
                 <Select
                   value={form.vesselId}
                   onValueChange={(v) => setForm({ ...form, vesselId: v })}
                 >
                   <SelectTrigger id="eidolon-vessel" className="bg-cyan-400/5 border-cyan-400/25">
-                    <SelectValue placeholder="No vessel (will be unbound)" />
+                    <SelectValue placeholder={t(lang, "common.noVessel")} />
                   </SelectTrigger>
                   <SelectContent className="hologram-panel-strong border-cyan-400/40">
-                    <SelectItem value="__none__">— none —</SelectItem>
+                    <SelectItem value="__none__">{t(lang, "common.none")}</SelectItem>
                     {vessels.map((v) => (
                       <SelectItem key={v.id} value={v.id}>
                         {v.codename} ({v.modelRoute})
@@ -259,14 +263,14 @@ export function EidolonPanel() {
                   onClick={() => setOpen(false)}
                   className="text-eidolon-text/60"
                 >
-                  Cancel
+                  {t(lang, "common.cancel")}
                 </Button>
                 <Button
                   type="submit"
                   disabled={createMutation.isPending}
                   className="bg-eidolon-cyan text-eidolon-bg hover:bg-eidolon-cyan/90 font-semibold"
                 >
-                  {createMutation.isPending ? "Awakening…" : "Awaken Eidolon"}
+                  {createMutation.isPending ? t(lang, "panel.eidolons.awakening") : t(lang, "panel.eidolons.awakenEidolon")}
                 </Button>
               </DialogFooter>
             </form>
@@ -278,25 +282,25 @@ export function EidolonPanel() {
     >
       {isLoading && eidolons.length === 0 && (
         <div className="text-xs text-eidolon-cyan/60 animate-pulse px-2 py-3">
-          Syncing eidolons…
+          {t(lang, "panel.eidolons.loading")}
         </div>
       )}
       {isError && (
         <div className="text-xs text-eidolon-amber px-2 py-2 flex items-center justify-between gap-2">
-          <span>Failed to load eidolons</span>
+          <span>{t(lang, "panel.eidolons.loadFailed")}</span>
           <Button
             size="sm"
             variant="ghost"
             className="h-6 px-2 text-eidolon-amber"
             onClick={() => refetch()}
           >
-            Retry
+            {t(lang, "common.retry")}
           </Button>
         </div>
       )}
       {!isLoading && !isError && eidolons.length === 0 && (
         <div className="text-xs text-eidolon-text/40 px-2 py-3 text-center">
-          No Eidolons awakened yet.
+          {t(lang, "panel.eidolons.empty")}
         </div>
       )}
       {eidolons.map((e) => {
@@ -339,7 +343,7 @@ export function EidolonPanel() {
               {vesselCodename ? (
                 <span className="font-mono">▣ {vesselCodename}</span>
               ) : (
-                <span className="text-eidolon-amber/70">no vessel bound</span>
+                <span className="text-eidolon-amber/70">{t(lang, "panel.eidolons.noVessel")}</span>
               )}
             </div>
           </button>

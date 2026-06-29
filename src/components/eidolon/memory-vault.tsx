@@ -8,6 +8,8 @@ import {
   useMatrixStore,
   type MemoryShard,
 } from "@/lib/store/matrix-store";
+import { useLangStore } from "@/lib/store/lang-store";
+import { t } from "@/lib/i18n/translations";
 import { HolographicCard } from "@/components/shared/holographic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +32,7 @@ function sourceColor(source: string) {
 }
 
 export function MemoryVault() {
+  const lang = useLangStore((s) => s.lang);
   const qc = useQueryClient();
   const selectedEidolonId = useMatrixStore((s) => s.selectedEidolonId);
   const selectedEidolonName = useMatrixStore((s) => {
@@ -79,10 +82,10 @@ export function MemoryVault() {
       qc.invalidateQueries({ queryKey: ["memory", selectedEidolonId] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       setKnowledge("");
-      toast.success("Memory engraved into the vault");
+      toast.success(t(lang, "memory.engraved"));
     },
     onError: (err: Error) => {
-      toast.error("Engrave failed", { description: err.message });
+      toast.error(t(lang, "memory.engraveFailed"), { description: err.message });
     },
   });
 
@@ -105,24 +108,24 @@ export function MemoryVault() {
     },
     onSuccess: (data) => {
       setRecalled(data);
-      if (data.length === 0) toast.info("No matching memories found");
+      if (data.length === 0) toast.info(t(lang, "memory.noMatch"));
     },
     onError: (err: Error) => {
-      toast.error("Recall failed", { description: err.message });
+      toast.error(t(lang, "memory.recallFailed"), { description: err.message });
     },
   });
 
   if (!selectedEidolonId) {
     return (
       <HolographicCard
-        title="Memory Vault"
-        subtitle="RAG · 长期记忆"
+        title={t(lang, "memory.title")}
+        subtitle={t(lang, "memory.subtitle")}
         glow={1}
         className="h-full"
       >
         <div className="text-xs text-eidolon-text/50 text-center py-8">
           <Database className="size-6 mx-auto mb-2 text-eidolon-cyan/40" />
-          Select an Eidolon to view its memory vault.
+          {t(lang, "memory.selectFirst")}
         </div>
       </HolographicCard>
     );
@@ -130,11 +133,11 @@ export function MemoryVault() {
 
   return (
     <HolographicCard
-      title="Memory Vault"
+      title={t(lang, "memory.title")}
       subtitle={
         selectedEidolonName
           ? `RAG · ${selectedEidolonName} · ${shards?.length ?? 0} shards`
-          : "RAG · 长期记忆"
+          : t(lang, "memory.subtitle")
       }
       glow={1}
       className="h-full"
@@ -142,14 +145,14 @@ export function MemoryVault() {
     >
       {isError && (
         <div className="text-xs text-eidolon-amber px-2 py-1 flex items-center justify-between gap-2">
-          <span>Failed to load memories</span>
+          <span>{t(lang, "memory.loadFailed")}</span>
           <Button
             size="sm"
             variant="ghost"
             className="h-6 px-2 text-eidolon-amber"
             onClick={() => refetch()}
           >
-            Retry
+            {t(lang, "common.retry")}
           </Button>
         </div>
       )}
@@ -157,21 +160,21 @@ export function MemoryVault() {
       {/* Ingest */}
       <div className="rounded-md border border-cyan-400/15 bg-cyan-400/[0.03] p-2 space-y-2">
         <Label htmlFor="mem-ingest" className="text-eidolon-cyan/80 text-[10px] uppercase tracking-wider flex items-center gap-1">
-          <Plus className="size-3" /> Engrave knowledge
+          <Plus className="size-3" /> {t(lang, "memory.engrave")}
         </Label>
         <Textarea
           id="mem-ingest"
           rows={3}
           value={knowledge}
           onChange={(e) => setKnowledge(e.target.value)}
-          placeholder="Inject a fact, RFC, or instruction this Eidolon should remember…"
+          placeholder={t(lang, "memory.engravePlaceholder")}
           className="bg-cyan-400/5 border-cyan-400/25 text-xs resize-y"
         />
         <Button
           size="sm"
           onClick={() => {
             if (!knowledge.trim()) {
-              toast.error("Knowledge is empty");
+              toast.error(t(lang, "memory.knowledgeEmpty"));
               return;
             }
             ingestMutation.mutate(knowledge.trim());
@@ -184,14 +187,14 @@ export function MemoryVault() {
           ) : (
             <Database className="size-3" />
           )}
-          Engrave Memory
+          {t(lang, "memory.engraveBtn")}
         </Button>
       </div>
 
       {/* Recall */}
       <div className="rounded-md border border-cyan-400/15 bg-cyan-400/[0.03] p-2 space-y-2">
         <Label htmlFor="mem-search" className="text-eidolon-cyan/80 text-[10px] uppercase tracking-wider flex items-center gap-1">
-          <Search className="size-3" /> Recall (cosine similarity)
+          <Search className="size-3" /> {t(lang, "memory.recall")}
         </Label>
         <div className="flex gap-1.5">
           <Input
@@ -203,7 +206,7 @@ export function MemoryVault() {
                 recallMutation.mutate(query.trim());
               }
             }}
-            placeholder="Query the vault…"
+            placeholder={t(lang, "memory.recallPlaceholder")}
             className="bg-cyan-400/5 border-cyan-400/25 text-xs h-7"
           />
           <Button
@@ -211,7 +214,7 @@ export function MemoryVault() {
             variant="outline"
             onClick={() => {
               if (!query.trim()) {
-                toast.error("Query is empty");
+                toast.error(t(lang, "memory.queryEmpty"));
                 return;
               }
               recallMutation.mutate(query.trim());
@@ -224,13 +227,13 @@ export function MemoryVault() {
             ) : (
               <Search className="size-3" />
             )}
-            Recall
+            {t(lang, "memory.recallBtn")}
           </Button>
         </div>
         {recalled && recalled.length > 0 && (
           <div className="space-y-1.5 pt-1">
             <div className="text-[10px] text-eidolon-text/40 uppercase tracking-wider">
-              Ranked results
+              {t(lang, "memory.results")}
             </div>
             {recalled.map((r) => {
               const sim = typeof r.similarity === "number" ? r.similarity * 100 : 0;
@@ -244,7 +247,7 @@ export function MemoryVault() {
                       {r.source}
                     </Badge>
                     <span className="text-eidolon-violet tabular-nums">
-                      {sim.toFixed(1)}% match
+                      {sim.toFixed(1)}% {t(lang, "memory.match")}
                     </span>
                   </div>
                   <Progress value={sim} className="h-1 bg-violet-400/10" />
@@ -261,17 +264,17 @@ export function MemoryVault() {
       {/* Shards list */}
       <div className="space-y-1.5">
         <div className="text-[10px] text-eidolon-text/40 uppercase tracking-wider flex items-center justify-between">
-          <span>Engraved shards</span>
+          <span>{t(lang, "memory.shards")}</span>
           <span className="tabular-nums">{shards?.length ?? 0}</span>
         </div>
         {isLoading && (
           <div className="text-[11px] text-eidolon-cyan/60 animate-pulse px-1 py-2">
-            Loading vault…
+            {t(lang, "memory.loadingVault")}
           </div>
         )}
         {!isLoading && shards && shards.length === 0 && (
           <div className="text-[11px] text-eidolon-text/40 px-1 py-3 text-center italic">
-            No memories engraved. Inject knowledge to awaken long-term recall.
+            {t(lang, "memory.empty")}
           </div>
         )}
         {shards?.map((s) => (
